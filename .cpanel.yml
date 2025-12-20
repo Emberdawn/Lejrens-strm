@@ -2,6 +2,4 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/emberpro/public_html/my-cms/
-    - /bin/rm -rf $DEPLOYPATH/*
-    - /bin/cp -a * $DEPLOYPATH
-    - /bin/cp -a .[^.]* $DEPLOYPATH || true
+    - /bin/cp -R * $DEPLOYPATH
