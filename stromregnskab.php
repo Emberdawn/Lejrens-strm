@@ -1379,21 +1379,31 @@ function sr_render_balances_page() {
 				r.name,
 				r.member_number,
 				COALESCE(pay.total_paid, 0) AS total_paid,
-				COALESCE(cons.total_kwh, 0) AS total_kwh
+				COALESCE(
+					(
+						SELECT reading_kwh
+						FROM {$wpdb->prefix}sr_meter_readings
+						WHERE resident_id = r.id AND status = %s
+						ORDER BY period_year DESC, period_month DESC
+						LIMIT 1
+					) - (
+						SELECT reading_kwh
+						FROM {$wpdb->prefix}sr_meter_readings
+						WHERE resident_id = r.id AND status = %s
+						ORDER BY period_year ASC, period_month ASC
+						LIMIT 1
+					),
+					0
+				) AS total_kwh
 			FROM {$table_residents} r
 			LEFT JOIN (
 				SELECT resident_id, SUM(amount) AS total_paid
 				FROM {$table_payments}
-				WHERE status = %s
 				GROUP BY resident_id
 			) pay ON r.id = pay.resident_id
-			LEFT JOIN (
-				SELECT resident_id, SUM(consumption_kwh) AS total_kwh
-				FROM {$table_summary}
-				GROUP BY resident_id
-			) cons ON r.id = cons.resident_id
 			ORDER BY r.name ASC
 			LIMIT %d OFFSET %d",
+			'verified',
 			'verified',
 			$per_page,
 			$offset
