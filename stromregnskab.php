@@ -1528,6 +1528,8 @@ function sr_render_resident_account_page() {
 
 	$rows = array();
 	if ( $resident ) {
+		$resident_page = sr_get_paged_param( 'sr_resident_account_page' );
+		$per_page      = 20;
 		$payments_by_period = array();
 		$payment_rows       = $wpdb->get_results(
 			$wpdb->prepare(
@@ -1596,6 +1598,15 @@ function sr_render_resident_account_page() {
 
 		$rows = array_reverse( $rows );
 	}
+
+	$total_pages = 1;
+	$paged_rows  = $rows;
+	if ( ! empty( $rows ) ) {
+		$total_pages  = (int) max( 1, ceil( count( $rows ) / $per_page ) );
+		$resident_page = min( $resident_page, $total_pages );
+		$offset       = ( $resident_page - 1 ) * $per_page;
+		$paged_rows   = array_slice( $rows, $offset, $per_page );
+	}
 	?>
 	<div class="wrap">
 		<h1>Beboer regnskab</h1>
@@ -1646,7 +1657,7 @@ function sr_render_resident_account_page() {
 						</tr>
 					</thead>
 					<tbody>
-						<?php foreach ( $rows as $row ) : ?>
+						<?php foreach ( $paged_rows as $row ) : ?>
 							<tr>
 								<td><?php echo esc_html( $row['period_month'] . '/' . $row['period_year'] ); ?></td>
 								<td><?php echo esc_html( number_format( (float) $row['consumption'], 3, ',', '.' ) ); ?></td>
@@ -1691,6 +1702,16 @@ function sr_render_resident_account_page() {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<?php
+				$pagination_base_url = admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-resident-account' );
+				if ( '' !== $selected_from_select ) {
+					$pagination_base_url = add_query_arg( 'member_number_select', $selected_from_select, $pagination_base_url );
+				}
+				if ( '' !== $selected_from_manual ) {
+					$pagination_base_url = add_query_arg( 'member_number_manual', $selected_from_manual, $pagination_base_url );
+				}
+				sr_render_pagination( $pagination_base_url, $resident_page, $total_pages, 'sr_resident_account_page' );
+				?>
 			<?php endif; ?>
 		<?php endif; ?>
 	</div>
