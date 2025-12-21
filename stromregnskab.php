@@ -40,7 +40,6 @@ function sr_activate_plugin() {
 		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 		name varchar(190) NOT NULL,
 		member_number varchar(50) NOT NULL,
-		internal_id varchar(50) NOT NULL,
 		wp_user_id bigint(20) unsigned DEFAULT NULL,
 		created_at datetime NOT NULL,
 		updated_at datetime NOT NULL,
@@ -292,21 +291,19 @@ function sr_render_residents_page() {
 		check_admin_referer( 'sr_add_resident_action', 'sr_add_resident_nonce' );
 		$name         = sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) );
 		$member_num   = sanitize_text_field( wp_unslash( $_POST['member_number'] ?? '' ) );
-		$internal_id  = sanitize_text_field( wp_unslash( $_POST['internal_id'] ?? '' ) );
 		$wp_user_id   = absint( $_POST['wp_user_id'] ?? 0 );
 
-		if ( $name && $member_num && $internal_id ) {
+		if ( $name && $member_num ) {
 			$wpdb->insert(
 				$table_residents,
 				array(
 					'name'         => $name,
 					'member_number'=> $member_num,
-					'internal_id'  => $internal_id,
 					'wp_user_id'   => $wp_user_id ? $wp_user_id : null,
 					'created_at'   => sr_now(),
 					'updated_at'   => sr_now(),
 				),
-				array( '%s', '%s', '%s', '%d', '%s', '%s' )
+				array( '%s', '%s', '%d', '%s', '%s' )
 			);
 			sr_log_action( 'create', 'resident', $wpdb->insert_id, 'Beboer oprettet' );
 		}
@@ -327,10 +324,6 @@ function sr_render_residents_page() {
 				<tr>
 					<th scope="row"><label for="member_number">Medlemsnummer (DNS)</label></th>
 					<td><input name="member_number" id="member_number" type="text" class="regular-text" required></td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="internal_id">Internt ID</label></th>
-					<td><input name="internal_id" id="internal_id" type="text" class="regular-text" required></td>
 				</tr>
 				<tr>
 					<th scope="row"><label for="wp_user_id">WordPress-bruger</label></th>
@@ -355,7 +348,6 @@ function sr_render_residents_page() {
 				<tr>
 					<th>Navn</th>
 					<th>Medlemsnummer</th>
-					<th>Internt ID</th>
 					<th>WP-bruger</th>
 				</tr>
 			</thead>
@@ -364,7 +356,6 @@ function sr_render_residents_page() {
 				<tr>
 					<td><?php echo esc_html( $resident->name ); ?></td>
 					<td><?php echo esc_html( $resident->member_number ); ?></td>
-					<td><?php echo esc_html( $resident->internal_id ); ?></td>
 					<td><?php echo esc_html( $resident->wp_user_id ); ?></td>
 				</tr>
 			<?php endforeach; ?>
@@ -384,6 +375,8 @@ function sr_render_readings_page() {
 	global $wpdb;
 	$table_readings = $wpdb->prefix . 'sr_meter_readings';
 	$table_residents = $wpdb->prefix . 'sr_residents';
+	$current_month   = (int) current_time( 'n' );
+	$current_year    = (int) current_time( 'Y' );
 
 	if ( isset( $_POST['sr_add_reading'] ) ) {
 		check_admin_referer( 'sr_add_reading_action', 'sr_add_reading_nonce' );
@@ -457,8 +450,8 @@ function sr_render_readings_page() {
 				<tr>
 					<th scope="row">Periode (måned/år)</th>
 					<td>
-						<input type="number" name="period_month" min="1" max="12" required>
-						<input type="number" name="period_year" min="2000" max="2100" required>
+						<input type="number" name="period_month" min="1" max="12" required value="<?php echo esc_attr( $current_month ); ?>">
+						<input type="number" name="period_year" min="2000" max="2100" required value="<?php echo esc_attr( $current_year ); ?>">
 					</td>
 				</tr>
 				<tr>
@@ -517,6 +510,8 @@ function sr_render_payments_page() {
 	global $wpdb;
 	$table_payments  = $wpdb->prefix . 'sr_payments';
 	$table_residents = $wpdb->prefix . 'sr_residents';
+	$current_month   = (int) current_time( 'n' );
+	$current_year    = (int) current_time( 'Y' );
 
 	if ( isset( $_POST['sr_add_payment'] ) ) {
 		check_admin_referer( 'sr_add_payment_action', 'sr_add_payment_nonce' );
@@ -588,8 +583,8 @@ function sr_render_payments_page() {
 				<tr>
 					<th scope="row">Periode (måned/år)</th>
 					<td>
-						<input type="number" name="period_month" min="1" max="12" required>
-						<input type="number" name="period_year" min="2000" max="2100" required>
+						<input type="number" name="period_month" min="1" max="12" required value="<?php echo esc_attr( $current_month ); ?>">
+						<input type="number" name="period_year" min="2000" max="2100" required value="<?php echo esc_attr( $current_year ); ?>">
 					</td>
 				</tr>
 				<tr>
@@ -647,6 +642,8 @@ function sr_render_prices_page() {
 	}
 	global $wpdb;
 	$table_prices = $wpdb->prefix . 'sr_prices';
+	$current_month = (int) current_time( 'n' );
+	$current_year  = (int) current_time( 'Y' );
 
 	if ( isset( $_POST['sr_save_price'] ) ) {
 		check_admin_referer( 'sr_save_price_action', 'sr_save_price_nonce' );
@@ -703,8 +700,8 @@ function sr_render_prices_page() {
 				<tr>
 					<th scope="row">Periode (måned/år)</th>
 					<td>
-						<input type="number" name="period_month" min="1" max="12" required>
-						<input type="number" name="period_year" min="2000" max="2100" required>
+						<input type="number" name="period_month" min="1" max="12" required value="<?php echo esc_attr( $current_month ); ?>">
+						<input type="number" name="period_year" min="2000" max="2100" required value="<?php echo esc_attr( $current_year ); ?>">
 					</td>
 				</tr>
 				<tr>
@@ -745,6 +742,8 @@ function sr_render_locks_page() {
 	}
 	global $wpdb;
 	$table_locks = $wpdb->prefix . 'sr_period_locks';
+	$current_month = (int) current_time( 'n' );
+	$current_year  = (int) current_time( 'Y' );
 
 	if ( isset( $_POST['sr_lock_period'] ) ) {
 		check_admin_referer( 'sr_lock_period_action', 'sr_lock_period_nonce' );
@@ -776,8 +775,8 @@ function sr_render_locks_page() {
 				<tr>
 					<th scope="row">Periode (måned/år)</th>
 					<td>
-						<input type="number" name="period_month" min="1" max="12" required>
-						<input type="number" name="period_year" min="2000" max="2100" required>
+						<input type="number" name="period_month" min="1" max="12" required value="<?php echo esc_attr( $current_month ); ?>">
+						<input type="number" name="period_year" min="2000" max="2100" required value="<?php echo esc_attr( $current_year ); ?>">
 					</td>
 				</tr>
 			</table>
@@ -1017,6 +1016,8 @@ function sr_resident_dashboard_shortcode() {
 	$table_readings  = $wpdb->prefix . 'sr_meter_readings';
 	$table_payments  = $wpdb->prefix . 'sr_payments';
 	$table_summary   = $wpdb->prefix . 'sr_monthly_summary';
+	$current_month   = (int) current_time( 'n' );
+	$current_year    = (int) current_time( 'Y' );
 
 	$current_user_id = get_current_user_id();
 	$resident        = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table_residents} WHERE wp_user_id = %d", $current_user_id ) );
@@ -1105,8 +1106,8 @@ function sr_resident_dashboard_shortcode() {
 		<h3>Indberet målerstand</h3>
 		<form method="post">
 			<?php wp_nonce_field( 'sr_submit_reading_action', 'sr_submit_reading_nonce' ); ?>
-			<input type="number" name="period_month" min="1" max="12" required placeholder="Måned">
-			<input type="number" name="period_year" min="2000" max="2100" required placeholder="År">
+			<input type="number" name="period_month" min="1" max="12" required placeholder="Måned" value="<?php echo esc_attr( $current_month ); ?>">
+			<input type="number" name="period_year" min="2000" max="2100" required placeholder="År" value="<?php echo esc_attr( $current_year ); ?>">
 			<input type="number" name="reading_kwh" step="0.001" required placeholder="kWh">
 			<button type="submit" name="sr_submit_reading">Send</button>
 		</form>
@@ -1114,8 +1115,8 @@ function sr_resident_dashboard_shortcode() {
 		<h3>Indberet indbetaling</h3>
 		<form method="post">
 			<?php wp_nonce_field( 'sr_submit_payment_action', 'sr_submit_payment_nonce' ); ?>
-			<input type="number" name="period_month" min="1" max="12" required placeholder="Måned">
-			<input type="number" name="period_year" min="2000" max="2100" required placeholder="År">
+			<input type="number" name="period_month" min="1" max="12" required placeholder="Måned" value="<?php echo esc_attr( $current_month ); ?>">
+			<input type="number" name="period_year" min="2000" max="2100" required placeholder="År" value="<?php echo esc_attr( $current_year ); ?>">
 			<input type="number" name="amount" step="0.01" required placeholder="Beløb">
 			<button type="submit" name="sr_submit_payment">Send</button>
 		</form>
