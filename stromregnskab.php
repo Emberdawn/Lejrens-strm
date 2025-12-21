@@ -454,10 +454,12 @@ function sr_render_readings_page() {
 		$year        = absint( $_POST['period_year'] ?? 0 );
 		$reading     = (float) ( $_POST['reading_kwh'] ?? 0 );
 		$reading_id  = absint( $_POST['reading_id'] ?? 0 );
+		$is_verified = ! empty( $_POST['reading_verified'] );
 
 		if ( $resident_id && $month && $year && $reading_id && ! sr_is_period_locked( $month, $year ) ) {
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$table_readings} WHERE id = %d", $reading_id ) );
 			if ( $existing ) {
+				$new_status = $is_verified ? 'verified' : 'pending';
 				$wpdb->update(
 					$table_readings,
 					array(
@@ -465,56 +467,72 @@ function sr_render_readings_page() {
 						'period_month'=> $month,
 						'period_year' => $year,
 						'reading_kwh' => $reading,
+						'status'      => $new_status,
 					),
 					array( 'id' => $reading_id ),
-					array( '%d', '%d', '%d', '%f' ),
+					array( '%d', '%d', '%d', '%f', '%s' ),
 					array( '%d' )
 				);
+				if ( $is_verified ) {
+					$wpdb->update(
+						$table_readings,
+						array(
+							'verified_by' => get_current_user_id(),
+							'verified_at' => sr_now(),
+						),
+						array( 'id' => $reading_id ),
+						array( '%d', '%s' ),
+						array( '%d' )
+					);
+				} else {
+					$wpdb->query(
+						$wpdb->prepare(
+							"UPDATE {$table_readings} SET verified_by = NULL, verified_at = NULL WHERE id = %d",
+							$reading_id
+						)
+					);
+				}
 				sr_log_action( 'update', 'reading', $reading_id, 'Admin opdatering' );
-				if ( 'verified' === $existing->status ) {
+				if ( $is_verified ) {
 					sr_generate_summary_for_reading( $resident_id, $month, $year );
+				}
+				if ( 'pending' === $existing->status && $is_verified ) {
+					sr_log_action( 'verify', 'reading', $reading_id, 'Målerstand verificeret' );
+					sr_notify_resident_verified( $resident_id, 'målerstand' );
+				} elseif ( 'verified' === $existing->status && ! $is_verified ) {
+					sr_log_action( 'unverify', 'reading', $reading_id, 'Målerstand markeret som ikke verificeret' );
+					sr_delete_summary_for_reading( $resident_id, $month, $year );
 				}
 			}
 		} elseif ( $resident_id && $month && $year && ! sr_is_period_locked( $month, $year ) ) {
+			$status = $is_verified ? 'verified' : 'pending';
+			$insert_data = array(
+				'resident_id' => $resident_id,
+				'period_month'=> $month,
+				'period_year' => $year,
+				'reading_kwh' => $reading,
+				'status'      => $status,
+				'submitted_by'=> get_current_user_id(),
+				'submitted_at'=> sr_now(),
+			);
+			$insert_format = array( '%d', '%d', '%d', '%f', '%s', '%d', '%s' );
+			if ( $is_verified ) {
+				$insert_data['verified_by'] = get_current_user_id();
+				$insert_data['verified_at'] = sr_now();
+				$insert_format[] = '%d';
+				$insert_format[] = '%s';
+			}
 			$wpdb->insert(
 				$table_readings,
-				array(
-					'resident_id' => $resident_id,
-					'period_month'=> $month,
-					'period_year' => $year,
-					'reading_kwh' => $reading,
-					'status'      => 'verified',
-					'submitted_by'=> get_current_user_id(),
-					'submitted_at'=> sr_now(),
-					'verified_by' => get_current_user_id(),
-					'verified_at' => sr_now(),
-				),
-				array( '%d', '%d', '%d', '%f', '%s', '%d', '%s', '%d', '%s' )
+				$insert_data,
+				$insert_format
 			);
 			sr_log_action( 'create', 'reading', $wpdb->insert_id, 'Admin indtastning' );
-			sr_generate_summary_for_reading( $resident_id, $month, $year );
-		}
-	}
-
-	if ( isset( $_GET['verify_reading'] ) ) {
-		$reading_id = absint( $_GET['verify_reading'] );
-		check_admin_referer( 'sr_verify_reading_' . $reading_id );
-		$reading = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table_readings} WHERE id = %d", $reading_id ) );
-		if ( $reading && 'pending' === $reading->status && ! sr_is_period_locked( $reading->period_month, $reading->period_year ) ) {
-			$wpdb->update(
-				$table_readings,
-				array(
-					'status'      => 'verified',
-					'verified_by' => get_current_user_id(),
-					'verified_at' => sr_now(),
-				),
-				array( 'id' => $reading_id ),
-				array( '%s', '%d', '%s' ),
-				array( '%d' )
-			);
-			sr_log_action( 'verify', 'reading', $reading_id, 'Målerstand verificeret' );
-			sr_generate_summary_for_reading( (int) $reading->resident_id, (int) $reading->period_month, (int) $reading->period_year );
-			sr_notify_resident_verified( (int) $reading->resident_id, 'målerstand' );
+			if ( $is_verified ) {
+				sr_generate_summary_for_reading( $resident_id, $month, $year );
+				sr_log_action( 'verify', 'reading', $wpdb->insert_id, 'Målerstand verificeret' );
+				sr_notify_resident_verified( $resident_id, 'målerstand' );
+			}
 		}
 	}
 
@@ -549,8 +567,17 @@ function sr_render_readings_page() {
 					<th scope="row">Målerstand (kWh)</th>
 					<td><input type="number" name="reading_kwh" id="sr_reading_value" step="0.001" required></td>
 				</tr>
+				<tr>
+					<th scope="row">Verificeret</th>
+					<td>
+						<label>
+							<input type="checkbox" name="reading_verified" id="sr_reading_verified" value="1">
+							Marker som verificeret
+						</label>
+					</td>
+				</tr>
 			</table>
-			<?php submit_button( 'Indtast og verificer', 'primary', 'sr_add_reading', false, array( 'id' => 'sr_reading_submit' ) ); ?>
+			<?php submit_button( 'Indtast', 'primary', 'sr_add_reading', false, array( 'id' => 'sr_reading_submit' ) ); ?>
 			<button type="button" class="button" id="sr_reading_cancel" style="display:none;">Afbryd</button>
 		</form>
 
@@ -586,12 +613,8 @@ function sr_render_readings_page() {
 								data-period-month="<?php echo esc_attr( $reading->period_month ); ?>"
 								data-period-year="<?php echo esc_attr( $reading->period_year ); ?>"
 								data-reading-kwh="<?php echo esc_attr( $reading->reading_kwh ); ?>"
+								data-status="<?php echo esc_attr( $reading->status ); ?>"
 							>Rediger</button>
-							<?php if ( 'pending' === $reading->status ) : ?>
-								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-readings&verify_reading=' . $reading->id ), 'sr_verify_reading_' . $reading->id ) ); ?>">Verificer</a>
-							<?php else : ?>
-								—
-							<?php endif; ?>
 						</td>
 					</tr>
 				<?php endforeach; ?>
@@ -611,6 +634,7 @@ function sr_render_readings_page() {
 			const monthField = document.getElementById('sr_reading_month');
 			const yearField = document.getElementById('sr_reading_year');
 			const readingField = document.getElementById('sr_reading_value');
+			const verifiedField = document.getElementById('sr_reading_verified');
 			const defaultLabel = submitButton ? submitButton.value : '';
 			const currentMonth = form.dataset.currentMonth || '';
 			const currentYear = form.dataset.currentYear || '';
@@ -622,6 +646,9 @@ function sr_render_readings_page() {
 					yearField.value = button.dataset.periodYear || currentYear;
 					readingField.value = button.dataset.readingKwh || '';
 					readingId.value = button.dataset.readingId || '';
+					if (verifiedField) {
+						verifiedField.checked = button.dataset.status === 'verified';
+					}
 					if (submitButton) {
 						submitButton.value = 'Gem';
 					}
@@ -638,6 +665,9 @@ function sr_render_readings_page() {
 					residentField.value = '';
 					monthField.value = currentMonth;
 					yearField.value = currentYear;
+					if (verifiedField) {
+						verifiedField.checked = false;
+					}
 					if (submitButton) {
 						submitButton.value = defaultLabel;
 					}
@@ -669,10 +699,12 @@ function sr_render_payments_page() {
 		$year        = absint( $_POST['period_year'] ?? 0 );
 		$amount      = (float) ( $_POST['amount'] ?? 0 );
 		$payment_id  = absint( $_POST['payment_id'] ?? 0 );
+		$is_verified = ! empty( $_POST['payment_verified'] );
 
 		if ( $resident_id && $month && $year && $payment_id && ! sr_is_period_locked( $month, $year ) ) {
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$table_payments} WHERE id = %d", $payment_id ) );
 			if ( $existing ) {
+				$new_status = $is_verified ? 'verified' : 'pending';
 				$wpdb->update(
 					$table_payments,
 					array(
@@ -680,51 +712,67 @@ function sr_render_payments_page() {
 						'period_month'=> $month,
 						'period_year' => $year,
 						'amount'      => $amount,
+						'status'      => $new_status,
 					),
 					array( 'id' => $payment_id ),
-					array( '%d', '%d', '%d', '%f' ),
+					array( '%d', '%d', '%d', '%f', '%s' ),
 					array( '%d' )
 				);
+				if ( $is_verified ) {
+					$wpdb->update(
+						$table_payments,
+						array(
+							'verified_by' => get_current_user_id(),
+							'verified_at' => sr_now(),
+						),
+						array( 'id' => $payment_id ),
+						array( '%d', '%s' ),
+						array( '%d' )
+					);
+				} else {
+					$wpdb->query(
+						$wpdb->prepare(
+							"UPDATE {$table_payments} SET verified_by = NULL, verified_at = NULL WHERE id = %d",
+							$payment_id
+						)
+					);
+				}
 				sr_log_action( 'update', 'payment', $payment_id, 'Admin opdatering' );
+				if ( 'pending' === $existing->status && $is_verified ) {
+					sr_log_action( 'verify', 'payment', $payment_id, 'Indbetaling verificeret' );
+					sr_notify_resident_verified( $resident_id, 'indbetaling' );
+				} elseif ( 'verified' === $existing->status && ! $is_verified ) {
+					sr_log_action( 'unverify', 'payment', $payment_id, 'Indbetaling markeret som ikke verificeret' );
+				}
 			}
 		} elseif ( $resident_id && $month && $year && ! sr_is_period_locked( $month, $year ) ) {
+			$status = $is_verified ? 'verified' : 'pending';
+			$insert_data = array(
+				'resident_id' => $resident_id,
+				'period_month'=> $month,
+				'period_year' => $year,
+				'amount'      => $amount,
+				'status'      => $status,
+				'submitted_by'=> get_current_user_id(),
+				'submitted_at'=> sr_now(),
+			);
+			$insert_format = array( '%d', '%d', '%d', '%f', '%s', '%d', '%s' );
+			if ( $is_verified ) {
+				$insert_data['verified_by'] = get_current_user_id();
+				$insert_data['verified_at'] = sr_now();
+				$insert_format[] = '%d';
+				$insert_format[] = '%s';
+			}
 			$wpdb->insert(
 				$table_payments,
-				array(
-					'resident_id' => $resident_id,
-					'period_month'=> $month,
-					'period_year' => $year,
-					'amount'      => $amount,
-					'status'      => 'verified',
-					'submitted_by'=> get_current_user_id(),
-					'submitted_at'=> sr_now(),
-					'verified_by' => get_current_user_id(),
-					'verified_at' => sr_now(),
-				),
-				array( '%d', '%d', '%d', '%f', '%s', '%d', '%s', '%d', '%s' )
+				$insert_data,
+				$insert_format
 			);
 			sr_log_action( 'create', 'payment', $wpdb->insert_id, 'Admin indtastning' );
-		}
-	}
-
-	if ( isset( $_GET['verify_payment'] ) ) {
-		$payment_id = absint( $_GET['verify_payment'] );
-		check_admin_referer( 'sr_verify_payment_' . $payment_id );
-		$payment = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table_payments} WHERE id = %d", $payment_id ) );
-		if ( $payment && 'pending' === $payment->status && ! sr_is_period_locked( $payment->period_month, $payment->period_year ) ) {
-			$wpdb->update(
-				$table_payments,
-				array(
-					'status'      => 'verified',
-					'verified_by' => get_current_user_id(),
-					'verified_at' => sr_now(),
-				),
-				array( 'id' => $payment_id ),
-				array( '%s', '%d', '%s' ),
-				array( '%d' )
-			);
-			sr_log_action( 'verify', 'payment', $payment_id, 'Indbetaling verificeret' );
-			sr_notify_resident_verified( (int) $payment->resident_id, 'indbetaling' );
+			if ( $is_verified ) {
+				sr_log_action( 'verify', 'payment', $wpdb->insert_id, 'Indbetaling verificeret' );
+				sr_notify_resident_verified( $resident_id, 'indbetaling' );
+			}
 		}
 	}
 
@@ -759,8 +807,17 @@ function sr_render_payments_page() {
 					<th scope="row">Beløb</th>
 					<td><input type="number" name="amount" id="sr_payment_amount" step="0.01" required></td>
 				</tr>
+				<tr>
+					<th scope="row">Verificeret</th>
+					<td>
+						<label>
+							<input type="checkbox" name="payment_verified" id="sr_payment_verified" value="1">
+							Marker som verificeret
+						</label>
+					</td>
+				</tr>
 			</table>
-			<?php submit_button( 'Indtast og verificer', 'primary', 'sr_add_payment', false, array( 'id' => 'sr_payment_submit' ) ); ?>
+			<?php submit_button( 'Indtast', 'primary', 'sr_add_payment', false, array( 'id' => 'sr_payment_submit' ) ); ?>
 			<button type="button" class="button" id="sr_payment_cancel" style="display:none;">Afbryd</button>
 		</form>
 
@@ -796,12 +853,8 @@ function sr_render_payments_page() {
 								data-period-month="<?php echo esc_attr( $payment->period_month ); ?>"
 								data-period-year="<?php echo esc_attr( $payment->period_year ); ?>"
 								data-amount="<?php echo esc_attr( $payment->amount ); ?>"
+								data-status="<?php echo esc_attr( $payment->status ); ?>"
 							>Rediger</button>
-							<?php if ( 'pending' === $payment->status ) : ?>
-								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-payments&verify_payment=' . $payment->id ), 'sr_verify_payment_' . $payment->id ) ); ?>">Verificer</a>
-							<?php else : ?>
-								—
-							<?php endif; ?>
 						</td>
 					</tr>
 				<?php endforeach; ?>
@@ -821,6 +874,7 @@ function sr_render_payments_page() {
 			const monthField = document.getElementById('sr_payment_month');
 			const yearField = document.getElementById('sr_payment_year');
 			const amountField = document.getElementById('sr_payment_amount');
+			const verifiedField = document.getElementById('sr_payment_verified');
 			const defaultLabel = submitButton ? submitButton.value : '';
 			const currentMonth = form.dataset.currentMonth || '';
 			const currentYear = form.dataset.currentYear || '';
@@ -832,6 +886,9 @@ function sr_render_payments_page() {
 					yearField.value = button.dataset.periodYear || currentYear;
 					amountField.value = button.dataset.amount || '';
 					paymentId.value = button.dataset.paymentId || '';
+					if (verifiedField) {
+						verifiedField.checked = button.dataset.status === 'verified';
+					}
 					if (submitButton) {
 						submitButton.value = 'Gem';
 					}
@@ -848,6 +905,9 @@ function sr_render_payments_page() {
 					residentField.value = '';
 					monthField.value = currentMonth;
 					yearField.value = currentYear;
+					if (verifiedField) {
+						verifiedField.checked = false;
+					}
 					if (submitButton) {
 						submitButton.value = defaultLabel;
 					}
@@ -1186,6 +1246,32 @@ function sr_generate_summary_for_reading( $resident_id, $month, $year ) {
 		array( '%d', '%d', '%d', '%f', '%f', '%f', '%s' )
 	);
 	sr_log_action( 'create', 'summary', $wpdb->insert_id, 'Beregning oprettet' );
+}
+
+/**
+ * Delete summary for a reading when it is unverified.
+ *
+ * @param int $resident_id Resident ID.
+ * @param int $month Month.
+ * @param int $year Year.
+ */
+function sr_delete_summary_for_reading( $resident_id, $month, $year ) {
+	global $wpdb;
+	$table_summary = $wpdb->prefix . 'sr_monthly_summary';
+
+	$deleted = $wpdb->delete(
+		$table_summary,
+		array(
+			'resident_id'  => $resident_id,
+			'period_month' => $month,
+			'period_year'  => $year,
+		),
+		array( '%d', '%d', '%d' )
+	);
+
+	if ( $deleted ) {
+		sr_log_action( 'delete', 'summary', null, 'Beregning slettet' );
+	}
 }
 
 /**
