@@ -173,6 +173,25 @@ function sr_now() {
 }
 
 /**
+ * Normalize decimal input, supporting comma decimals and thousands separators.
+ *
+ * @param mixed $value Raw input value.
+ * @return float
+ */
+function sr_normalize_decimal_input( $value ) {
+	$value = trim( (string) $value );
+	if ( '' === $value ) {
+		return 0.0;
+	}
+	if ( str_contains( $value, ',' ) ) {
+		$value = str_replace( '.', '', $value );
+		$value = str_replace( ',', '.', $value );
+	}
+	$value = str_replace( ' ', '', $value );
+	return (float) $value;
+}
+
+/**
  * Check if a period is locked.
  *
  * @param int $month Month.
@@ -697,7 +716,7 @@ function sr_render_payments_page() {
 		$resident_id = absint( $_POST['resident_id'] ?? 0 );
 		$month       = absint( $_POST['period_month'] ?? 0 );
 		$year        = absint( $_POST['period_year'] ?? 0 );
-		$amount      = (float) ( $_POST['amount'] ?? 0 );
+		$amount      = sr_normalize_decimal_input( $_POST['amount'] ?? 0 );
 		$payment_id  = absint( $_POST['payment_id'] ?? 0 );
 		$is_verified = ! empty( $_POST['payment_verified'] );
 
@@ -1369,7 +1388,7 @@ function sr_resident_dashboard_shortcode() {
 		check_admin_referer( 'sr_submit_payment_action', 'sr_submit_payment_nonce' );
 		$month  = absint( $_POST['period_month'] ?? 0 );
 		$year   = absint( $_POST['period_year'] ?? 0 );
-		$amount = (float) ( $_POST['amount'] ?? 0 );
+		$amount = sr_normalize_decimal_input( $_POST['amount'] ?? 0 );
 
 		if ( $month && $year && ! sr_is_period_locked( $month, $year ) ) {
 			$wpdb->insert(
