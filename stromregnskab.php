@@ -2131,7 +2131,7 @@ function sr_render_bank_statements_page() {
 			if ( false === $contents ) {
 				$message = '<div class="notice notice-error"><p>Kunne ikke åbne CSV-filen.</p></div>';
 			} else {
-				if ( false === strpos( $contents, "\n" ) && false !== strpos( $contents, '\\n' ) ) {
+				if ( false !== strpos( $contents, '\\n' ) ) {
 					$contents = str_replace( '\\n', "\n", $contents );
 				}
 				$contents = str_replace( array( "\r\n", "\r" ), "\n", $contents );
