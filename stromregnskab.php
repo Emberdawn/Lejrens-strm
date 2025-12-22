@@ -137,7 +137,6 @@ function sr_activate_plugin() {
 		`Tekst` text NOT NULL,
 		`Beløb` decimal(12,2) NOT NULL,
 		`Saldo` decimal(12,2) NOT NULL,
-		`Kommentar` text NULL,
 		row_hash char(64) NOT NULL,
 		created_at datetime NOT NULL,
 		PRIMARY KEY  (id),
@@ -148,7 +147,6 @@ function sr_activate_plugin() {
 	dbDelta( $sql );
 	sr_add_foreign_keys();
 	sr_add_payment_bank_statement_column();
-	sr_add_bank_statement_comment_column();
 	sr_remove_bank_statement_account_name_column();
 
 	add_role(
@@ -249,24 +247,6 @@ function sr_add_payment_bank_statement_column() {
 }
 
 add_action( 'admin_init', 'sr_add_payment_bank_statement_column' );
-
-/**
- * Ensure bank statements table includes Kommentar column.
- */
-function sr_add_bank_statement_comment_column() {
-	global $wpdb;
-
-	$table_bank_statements = $wpdb->prefix . 'sr_bank_statements';
-	$column_exists         = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table_bank_statements} LIKE %s", 'Kommentar' ) );
-
-	if ( ! $column_exists ) {
-		$wpdb->query( "ALTER TABLE {$table_bank_statements} ADD COLUMN `Kommentar` text NULL AFTER `Saldo`" );
-	} else {
-		$wpdb->query( "ALTER TABLE {$table_bank_statements} MODIFY COLUMN `Kommentar` text NULL AFTER `Saldo`" );
-	}
-}
-
-add_action( 'admin_init', 'sr_add_bank_statement_comment_column' );
 
 /**
  * Add plugin menu items.
@@ -469,25 +449,6 @@ function sr_normalize_decimal_input( $value ) {
 	}
 	$value = str_replace( ' ', '', $value );
 	return (float) $value;
-}
-
-/**
- * Check if value looks like a decimal number (supports comma decimals).
- *
- * @param mixed $value Raw input value.
- * @return bool
- */
-function sr_is_decimal_like( $value ) {
-	$value = trim( (string) $value );
-	if ( '' === $value ) {
-		return false;
-	}
-	$value = str_replace( ' ', '', $value );
-	if ( str_contains( $value, ',' ) ) {
-		$value = str_replace( '.', '', $value );
-		$value = str_replace( ',', '.', $value );
-	}
-	return is_numeric( $value );
 }
 
 /**
@@ -2520,10 +2481,9 @@ function sr_render_bank_statements_page() {
 		} elseif ( ! empty( $file['error'] ) ) {
 			$message = '<div class="notice notice-error"><p>Der opstod en fejl under upload af filen.</p></div>';
 		} else {
-			$added       = 0;
-			$skipped     = 0;
-			$read_rows   = 0;
-			$header_map  = array();
+			$added   = 0;
+			$skipped = 0;
+			$read_rows = 0;
 			$contents = file_get_contents( $file['tmp_name'] );
 
 			if ( false === $contents ) {
@@ -2556,23 +2516,6 @@ function sr_render_bank_statements_page() {
 					$header_first = $header_check[0] ?? '';
 					$header_first = preg_replace( '/^\xEF\xBB\xBF/', '', $header_first );
 					if ( '' !== $header_first && 'dato' === strtolower( $header_first ) ) {
-						foreach ( $header_check as $index => $header ) {
-							$normalized = strtolower( remove_accents( $header ) );
-							if ( '' === $normalized ) {
-								continue;
-							}
-							if ( str_contains( $normalized, 'dato' ) ) {
-								$header_map['date'] = $index;
-							} elseif ( str_contains( $normalized, 'tekst' ) ) {
-								$header_map['text'] = $index;
-							} elseif ( str_contains( $normalized, 'belob' ) || str_contains( $normalized, 'beløb' ) ) {
-								$header_map['amount'] = $index;
-							} elseif ( str_contains( $normalized, 'saldo' ) ) {
-								$header_map['balance'] = $index;
-							} elseif ( str_contains( $normalized, 'kommentar' ) ) {
-								$header_map['comment'] = $index;
-							}
-						}
 						continue;
 					}
 
@@ -2581,39 +2524,16 @@ function sr_render_bank_statements_page() {
 					}
 
 					$read_rows++;
-					$date    = '';
-					$text    = '';
-					$comment = '';
-					$amount  = 0.0;
-					$balance = 0.0;
-
-					if ( ! empty( $header_map ) ) {
-						$date    = trim( (string) ( $row[ $header_map['date'] ] ?? '' ) );
-						$text    = trim( (string) ( $row[ $header_map['text'] ] ?? '' ) );
-						$comment = trim( (string) ( $row[ $header_map['comment'] ] ?? '' ) );
-						$amount  = sr_normalize_decimal_input( $row[ $header_map['amount'] ] ?? '' );
-						$balance = sr_normalize_decimal_input( $row[ $header_map['balance'] ] ?? '' );
-					} elseif ( count( $row ) >= 5 && ! sr_is_decimal_like( $row[2] ) && sr_is_decimal_like( $row[3] ) ) {
-						$comment = trim( (string) $row[2] );
-						$amount  = sr_normalize_decimal_input( $row[3] );
-						$balance = sr_normalize_decimal_input( $row[4] );
-					} else {
-						$date    = trim( (string) $row[0] );
-						$text    = trim( (string) $row[1] );
-						$amount  = sr_normalize_decimal_input( $row[2] );
-						$balance = sr_normalize_decimal_input( $row[3] );
-					}
-
-					if ( '' === $date && '' === $text ) {
-						continue;
-					}
+					$date           = trim( (string) $row[0] );
+					$text           = trim( (string) $row[1] );
+					$amount         = sr_normalize_decimal_input( $row[2] );
+					$balance        = sr_normalize_decimal_input( $row[3] );
 
 					$hash_source = implode(
 						'|',
 						array(
 							$date,
 							$text,
-							$comment,
 							(string) $amount,
 							(string) $balance,
 						)
@@ -2637,13 +2557,12 @@ function sr_render_bank_statements_page() {
 						array(
 							'Dato'        => $date,
 							'Tekst'       => $text,
-							'Kommentar'   => $comment,
 							'Beløb'       => $amount,
 							'Saldo'       => $balance,
 							'row_hash'    => $row_hash,
 							'created_at'  => sr_now(),
 						),
-						array( '%s', '%s', '%s', '%f', '%f', '%s', '%s' )
+						array( '%s', '%s', '%f', '%f', '%s', '%s' )
 					);
 
 					if ( false !== $inserted ) {
@@ -2703,7 +2622,7 @@ function sr_render_bank_statements_page() {
 					<th scope="row">CSV-fil</th>
 					<td>
 						<input type="file" name="sr_bank_csv" accept=".csv,text/csv" required>
-						<p class="description">CSV-format: Dato;Tekst;Beløb;Saldo (Kommentar-kolonne og ekstra bankkolonner understøttes).</p>
+						<p class="description">CSV-format: Dato;Tekst;Beløb;Saldo</p>
 					</td>
 				</tr>
 			</table>
@@ -2716,7 +2635,6 @@ function sr_render_bank_statements_page() {
 				<tr>
 					<th>Dato</th>
 					<th>Tekst</th>
-					<th>Kommentar</th>
 					<th>Beløb</th>
 					<th>Saldo</th>
 				</tr>
@@ -2724,14 +2642,13 @@ function sr_render_bank_statements_page() {
 			<tbody>
 				<?php if ( empty( $rows ) ) : ?>
 					<tr>
-						<td colspan="5">Ingen banklinjer fundet.</td>
+						<td colspan="4">Ingen banklinjer fundet.</td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $rows as $row ) : ?>
 						<tr>
 							<td><?php echo esc_html( $row->Dato ); ?></td>
 							<td><?php echo esc_html( $row->Tekst ); ?></td>
-							<td><?php echo esc_html( $row->Kommentar ?? '' ); ?></td>
 							<td><?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?></td>
 							<td><?php echo esc_html( number_format( (float) $row->Saldo, 2, ',', '.' ) ); ?></td>
 						</tr>
@@ -2880,7 +2797,6 @@ function sr_render_bank_statement_link_page() {
 				<tr>
 					<th>Dato</th>
 					<th>Tekst</th>
-					<th>Kommentar</th>
 					<th>Beløb</th>
 					<th>dns</th>
 					<th>Handling</th>
@@ -2889,14 +2805,13 @@ function sr_render_bank_statement_link_page() {
 			<tbody>
 				<?php if ( empty( $rows ) ) : ?>
 					<tr>
-						<td colspan="6">Ingen banklinjer fundet.</td>
+						<td colspan="5">Ingen banklinjer fundet.</td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $rows as $row ) : ?>
 						<tr>
 							<td><?php echo esc_html( $row->Dato ); ?></td>
 							<td><?php echo esc_html( $row->Tekst ); ?></td>
-							<td><?php echo esc_html( $row->Kommentar ?? '' ); ?></td>
 							<td><?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?></td>
 							<td>
 								<?php if ( $row->payment_id ) : ?>
