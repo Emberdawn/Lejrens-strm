@@ -135,9 +135,9 @@ function sr_activate_plugin() {
 		id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 		`Dato` varchar(20) NOT NULL,
 		`Tekst` text NOT NULL,
-		`Kommentar` text NULL,
 		`Beløb` decimal(12,2) NOT NULL,
 		`Saldo` decimal(12,2) NOT NULL,
+		`Kommentar` text NULL,
 		row_hash char(64) NOT NULL,
 		created_at datetime NOT NULL,
 		PRIMARY KEY  (id),
@@ -260,7 +260,9 @@ function sr_add_bank_statement_comment_column() {
 	$column_exists         = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table_bank_statements} LIKE %s", 'Kommentar' ) );
 
 	if ( ! $column_exists ) {
-		$wpdb->query( "ALTER TABLE {$table_bank_statements} ADD COLUMN `Kommentar` text NULL AFTER `Tekst`" );
+		$wpdb->query( "ALTER TABLE {$table_bank_statements} ADD COLUMN `Kommentar` text NULL AFTER `Saldo`" );
+	} else {
+		$wpdb->query( "ALTER TABLE {$table_bank_statements} MODIFY COLUMN `Kommentar` text NULL AFTER `Saldo`" );
 	}
 }
 
