@@ -2126,12 +2126,20 @@ function sr_render_bank_statements_page() {
 		} else {
 			$added   = 0;
 			$skipped = 0;
-			$handle  = fopen( $file['tmp_name'], 'r' );
+			$contents = file_get_contents( $file['tmp_name'] );
 
-			if ( false === $handle ) {
+			if ( false === $contents ) {
 				$message = '<div class="notice notice-error"><p>Kunne ikke åbne CSV-filen.</p></div>';
 			} else {
-				while ( ( $row = fgetcsv( $handle, 0, ';' ) ) !== false ) {
+				if ( false === strpos( $contents, "\n" ) && false !== strpos( $contents, '\\n' ) ) {
+					$contents = str_replace( '\\n', "\n", $contents );
+				}
+				$contents = str_replace( array( "\r\n", "\r" ), "\n", $contents );
+				$lines    = array_filter( array_map( 'trim', explode( "\n", $contents ) ), 'strlen' );
+
+				foreach ( $lines as $line ) {
+					$row = str_getcsv( $line, ';' );
+
 					if ( empty( array_filter( $row, 'strlen' ) ) ) {
 						continue;
 					}
@@ -2203,7 +2211,6 @@ function sr_render_bank_statements_page() {
 					}
 				}
 
-				fclose( $handle );
 				$message = '<div class="notice notice-success"><p>' .
 					sprintf(
 						'Indlæsning fuldført. Tilføjede %d rækker, sprang %d rækker over (duplikater).',
