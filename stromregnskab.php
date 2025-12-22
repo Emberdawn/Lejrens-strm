@@ -2124,9 +2124,10 @@ function sr_render_bank_statements_page() {
 		} elseif ( ! empty( $file['error'] ) ) {
 			$message = '<div class="notice notice-error"><p>Der opstod en fejl under upload af filen.</p></div>';
 		} else {
-			$added   = 0;
-			$skipped = 0;
-			$contents = file_get_contents( $file['tmp_name'] );
+			$added     = 0;
+			$skipped   = 0;
+			$delimiter = ';';
+			$contents  = file_get_contents( $file['tmp_name'] );
 
 			if ( false === $contents ) {
 				$message = '<div class="notice notice-error"><p>Kunne ikke åbne CSV-filen.</p></div>';
@@ -2138,7 +2139,7 @@ function sr_render_bank_statements_page() {
 				$lines    = array_filter( array_map( 'trim', explode( "\n", $contents ) ), 'strlen' );
 
 				foreach ( $lines as $line ) {
-					$row = str_getcsv( $line, ';' );
+					$row = str_getcsv( $line, $delimiter );
 
 					if ( empty( array_filter( $row, 'strlen' ) ) ) {
 						continue;
