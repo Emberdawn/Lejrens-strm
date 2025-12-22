@@ -2739,7 +2739,7 @@ function sr_render_bank_statement_link_page() {
 		}
 	}
 
-	$hide_negative = isset( $_GET['sr_hide_negative'] ) && '1' === $_GET['sr_hide_negative'];
+	$hide_negative = ! isset( $_GET['sr_hide_negative'] ) || '1' === $_GET['sr_hide_negative'];
 	$where_clauses = array( 'p.id IS NULL' );
 	if ( $hide_negative ) {
 		$where_clauses[] = 'b.`Beløb` >= 0';
@@ -2782,6 +2782,7 @@ function sr_render_bank_statement_link_page() {
 		<?php echo wp_kses_post( $message ); ?>
 		<form method="get" style="margin: 12px 0;">
 			<input type="hidden" name="page" value="<?php echo esc_attr( SR_PLUGIN_SLUG . '-bank-link-payments' ); ?>">
+			<input type="hidden" name="sr_hide_negative" value="0">
 			<label>
 				<input type="checkbox" name="sr_hide_negative" value="1" <?php checked( $hide_negative ); ?>>
 				Skjul negative posteringer
