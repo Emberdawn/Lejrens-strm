@@ -2847,7 +2847,14 @@ function sr_render_bank_statement_link_page() {
 				<?php endif; ?>
 			</tbody>
 		</table>
-		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-bank-link-payments' ), $current_page, $total_pages ); ?>
+		<?php
+		$pagination_base = add_query_arg(
+			'sr_hide_negative',
+			$hide_negative ? '1' : '0',
+			admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-bank-link-payments' )
+		);
+		sr_render_pagination( $pagination_base, $current_page, $total_pages );
+		?>
 	</div>
 	<script>
 		document.querySelectorAll('.sr-link-payment-form').forEach((form) => {
