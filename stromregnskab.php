@@ -2710,9 +2710,9 @@ function sr_render_graphs_page() {
 
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT period_month, SUM(reading_kwh) AS total_kwh
-			 FROM {$table_readings}
-			 WHERE resident_id = %d AND period_year = %d AND status = 'verified'
+			"SELECT period_month, SUM(consumption_kwh) AS total_kwh
+			 FROM {$table_summary}
+			 WHERE resident_id = %d AND period_year = %d
 			 GROUP BY period_month",
 			$selected_resident_id,
 			$selected_year
@@ -2803,7 +2803,7 @@ function sr_render_graphs_page() {
 		<div class="sr-graph-panel">
 			<canvas id="sr-kwh-chart" width="960" height="360"></canvas>
 		</div>
-		<p class="description">Grafen viser verificerede kWh-indberetninger samt betalingssaldoen for den valgte beboer pr. måned.</p>
+		<p class="description">Grafen viser beregnet kWh-forbrug samt betalingssaldoen for den valgte beboer pr. måned.</p>
 		<?php if ( ! $has_data ) : ?>
 			<p>Der er endnu ingen verificerede indberetninger for det valgte år.</p>
 		<?php endif; ?>
