@@ -2783,7 +2783,7 @@ function sr_render_graphs_page() {
 	}
 
 	$account_rows = sr_get_resident_account_rows( $selected_resident_id );
-	$monthly_payments = array_fill( 1, 12, 0.0 );
+	$monthly_total_payments = array_fill( 1, 12, 0.0 );
 	$monthly_balances = array_fill( 1, 12, 0.0 );
 	foreach ( $account_rows as $account_row ) {
 		if ( (int) $account_row['period_year'] !== $selected_year ) {
@@ -2793,14 +2793,14 @@ function sr_render_graphs_page() {
 		if ( $month_index < 1 || $month_index > 12 ) {
 			continue;
 		}
-		$monthly_payments[ $month_index ] = (float) $account_row['payments'];
+		$monthly_total_payments[ $month_index ] = (float) $account_row['total_payments'];
 		if ( null !== $account_row['balance'] ) {
 			$monthly_balances[ $month_index ] = (float) $account_row['balance'];
 		}
 	}
 
 	$month_labels = array( 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec' );
-	$chart_data   = array_values( $monthly_payments );
+	$chart_data   = array_values( $monthly_total_payments );
 	$balance_data = array_values( $monthly_balances );
 	$has_data     = array_sum( $chart_data ) > 0 || array_sum( array_map( 'abs', $balance_data ) ) > 0;
 	?>
@@ -2830,7 +2830,7 @@ function sr_render_graphs_page() {
 		<div class="sr-graph-panel">
 			<canvas id="sr-kwh-chart" width="960" height="360"></canvas>
 		</div>
-		<p class="description">Grafen viser samlet indbetalt samt saldo pr. måned for den valgte beboer.</p>
+		<p class="description">Grafen viser totalt indbetalt samt saldo pr. måned for den valgte beboer.</p>
 		<?php if ( ! $has_data ) : ?>
 			<p>Der er endnu ingen verificerede indbetalinger for det valgte år.</p>
 		<?php endif; ?>
@@ -2944,7 +2944,7 @@ function sr_render_graphs_page() {
 			ctx.fillStyle = '#2271b1';
 			ctx.fillRect(padding.left, padding.top - 18, 12, 12);
 			ctx.fillStyle = '#1d2327';
-			ctx.fillText('Indbetalt (kr.)', padding.left + 18, padding.top - 8);
+			ctx.fillText('Total indbetalt (kr.)', padding.left + 18, padding.top - 8);
 			ctx.fillStyle = '#d63638';
 			ctx.fillRect(padding.left + 70, padding.top - 18, 12, 12);
 			ctx.fillStyle = '#1d2327';
