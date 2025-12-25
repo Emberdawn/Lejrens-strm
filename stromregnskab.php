@@ -2410,6 +2410,7 @@ function sr_render_balances_page() {
 				r.name,
 				r.member_number,
 				COALESCE(pay.total_paid, 0) AS total_paid,
+				costs.total_cost,
 				COALESCE(
 					(
 						SELECT reading_kwh
@@ -2433,6 +2434,11 @@ function sr_render_balances_page() {
 				WHERE status = %s
 				GROUP BY resident_id
 			) pay ON r.id = pay.resident_id
+			LEFT JOIN (
+				SELECT resident_id, SUM(cost) AS total_cost
+				FROM {$table_summary}
+				GROUP BY resident_id
+			) costs ON r.id = costs.resident_id
 			ORDER BY r.name ASC
 			LIMIT %d OFFSET %d",
 			'verified',
@@ -2452,6 +2458,7 @@ function sr_render_balances_page() {
 					<th>Medlemsnummer</th>
 					<th>Totalt indbetalt</th>
 					<th>Total kilowatt</th>
+					<th>Forbrug</th>
 					<th>Saldo status</th>
 				</tr>
 			</thead>
@@ -2469,6 +2476,13 @@ function sr_render_balances_page() {
 						<td><?php echo esc_html( $balance->member_number ); ?></td>
 						<td><?php echo esc_html( number_format_i18n( (float) $balance->total_paid, 2 ) ); ?></td>
 						<td><?php echo esc_html( number_format_i18n( (float) $balance->total_kwh, 3 ) ); ?></td>
+						<td>
+							<?php if ( null === $balance->total_cost ) : ?>
+								Ikke beregnet
+							<?php else : ?>
+								<?php echo esc_html( number_format_i18n( (float) $balance->total_cost, 2 ) ); ?> kr.
+							<?php endif; ?>
+						</td>
 						<td class="<?php echo esc_attr( $balance_class ); ?>">
 							<?php if ( null === $balance_status ) : ?>
 								Ikke beregnet
