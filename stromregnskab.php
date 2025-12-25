@@ -879,6 +879,7 @@ function sr_get_resident_account_rows( $resident_id ) {
 					'consumption'  => $period_consumption,
 					'price'        => $price,
 					'cost'         => $cost,
+					'total_cost'   => null,
 					'payments'     => 0.0,
 					'balance'      => null,
 				);
@@ -887,6 +888,7 @@ function sr_get_resident_account_rows( $resident_id ) {
 	}
 
 	$running_balance = 0.0;
+	$running_cost    = null;
 	foreach ( $rows as $index => $row ) {
 		$key                        = $row['period_year'] . '-' . $row['period_month'];
 		$payments_total             = $payments_by_period[ $key ] ?? 0.0;
@@ -895,6 +897,12 @@ function sr_get_resident_account_rows( $resident_id ) {
 		if ( null === $row['cost'] ) {
 			continue;
 		}
+
+		if ( null === $running_cost ) {
+			$running_cost = 0.0;
+		}
+		$running_cost += (float) $row['cost'];
+		$rows[ $index ]['total_cost'] = $running_cost;
 
 		$running_balance          += $payments_total - (float) $row['cost'];
 		$rows[ $index ]['balance'] = $running_balance;
@@ -2620,6 +2628,7 @@ function sr_render_resident_account_page() {
 							<th>Forbrug (kWh)</th>
 							<th>Pris pr. kWh</th>
 							<th>Beløb</th>
+							<th>Totalt forbrug</th>
 							<th>Indbetalinger</th>
 							<th>Saldo status</th>
 						</tr>
@@ -2654,6 +2663,13 @@ function sr_render_resident_account_page() {
 										Ikke beregnet
 									<?php else : ?>
 										<?php echo esc_html( number_format( (float) $row['cost'], 2, ',', '.' ) ); ?> kr.
+									<?php endif; ?>
+								</td>
+								<td class="<?php echo esc_attr( $cost_class ); ?>">
+									<?php if ( null === $row['total_cost'] ) : ?>
+										Ikke beregnet
+									<?php else : ?>
+										<?php echo esc_html( number_format( (float) $row['total_cost'], 2, ',', '.' ) ); ?> kr.
 									<?php endif; ?>
 								</td>
 								<?php
