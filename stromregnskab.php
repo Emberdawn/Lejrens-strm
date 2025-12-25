@@ -2671,6 +2671,8 @@ function sr_render_graphs_page() {
 	global $wpdb;
 	$table_residents = $wpdb->prefix . 'sr_residents';
 	$table_readings  = $wpdb->prefix . 'sr_meter_readings';
+	$table_payments  = $wpdb->prefix . 'sr_payments';
+	$table_summary   = $wpdb->prefix . 'sr_monthly_summary';
 
 	$residents = $wpdb->get_results( "SELECT id, name, member_number FROM {$table_residents} ORDER BY name ASC" );
 	if ( empty( $residents ) ) {
@@ -2725,9 +2727,55 @@ function sr_render_graphs_page() {
 		}
 	}
 
+	$payment_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT period_month, SUM(amount) AS total_paid
+			 FROM {$table_payments}
+			 WHERE resident_id = %d AND period_year = %d AND status = 'verified'
+			 GROUP BY period_month",
+			$selected_resident_id,
+			$selected_year
+		)
+	);
+
+	$summary_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT period_month, SUM(cost) AS total_cost
+			 FROM {$table_summary}
+			 WHERE resident_id = %d AND period_year = %d
+			 GROUP BY period_month",
+			$selected_resident_id,
+			$selected_year
+		)
+	);
+
+	$monthly_payments = array_fill( 1, 12, 0.0 );
+	foreach ( $payment_rows as $row ) {
+		$month_index = (int) $row->period_month;
+		if ( $month_index >= 1 && $month_index <= 12 ) {
+			$monthly_payments[ $month_index ] = (float) $row->total_paid;
+		}
+	}
+
+	$monthly_costs = array_fill( 1, 12, 0.0 );
+	foreach ( $summary_rows as $row ) {
+		$month_index = (int) $row->period_month;
+		if ( $month_index >= 1 && $month_index <= 12 ) {
+			$monthly_costs[ $month_index ] = (float) $row->total_cost;
+		}
+	}
+
+	$monthly_balances = array();
+	$running_balance = 0.0;
+	for ( $month_index = 1; $month_index <= 12; $month_index++ ) {
+		$running_balance += (float) $monthly_payments[ $month_index ] - (float) $monthly_costs[ $month_index ];
+		$monthly_balances[ $month_index ] = $running_balance;
+	}
+
 	$month_labels = array( 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec' );
 	$chart_data   = array_values( $monthly_data );
-	$has_data     = array_sum( $chart_data ) > 0;
+	$balance_data = array_values( $monthly_balances );
+	$has_data     = array_sum( $chart_data ) > 0 || array_sum( array_map( 'abs', $balance_data ) ) > 0;
 	?>
 	<div class="wrap">
 		<h1>Grafer</h1>
@@ -2755,7 +2803,7 @@ function sr_render_graphs_page() {
 		<div class="sr-graph-panel">
 			<canvas id="sr-kwh-chart" width="960" height="360"></canvas>
 		</div>
-		<p class="description">Grafen viser verificerede kWh-indberetninger for den valgte beboer pr. måned.</p>
+		<p class="description">Grafen viser verificerede kWh-indberetninger samt betalingssaldoen for den valgte beboer pr. måned.</p>
 		<?php if ( ! $has_data ) : ?>
 			<p>Der er endnu ingen verificerede indberetninger for det valgte år.</p>
 		<?php endif; ?>
@@ -2768,6 +2816,7 @@ function sr_render_graphs_page() {
 	<script>
 		(function() {
 			const data = <?php echo wp_json_encode( $chart_data ); ?>;
+			const balanceData = <?php echo wp_json_encode( $balance_data ); ?>;
 			const labels = <?php echo wp_json_encode( $month_labels ); ?>;
 			const canvas = document.getElementById('sr-kwh-chart');
 			if (!canvas || !canvas.getContext) {
@@ -2786,10 +2835,13 @@ function sr_render_graphs_page() {
 			const height = canvas.height;
 			ctx.clearRect(0, 0, width, height);
 
-			const padding = { top: 30, right: 30, bottom: 40, left: 60 };
+			const padding = { top: 30, right: 80, bottom: 40, left: 60 };
 			const chartWidth = width - padding.left - padding.right;
 			const chartHeight = height - padding.top - padding.bottom;
 			const maxValue = Math.max(1, ...data);
+			const balanceMin = Math.min(0, ...balanceData);
+			const balanceMax = Math.max(0, ...balanceData);
+			const balanceRange = Math.max(1, balanceMax - balanceMin);
 
 			ctx.strokeStyle = '#ccd0d4';
 			ctx.lineWidth = 1;
@@ -2797,6 +2849,7 @@ function sr_render_graphs_page() {
 			ctx.moveTo(padding.left, padding.top);
 			ctx.lineTo(padding.left, height - padding.bottom);
 			ctx.lineTo(width - padding.right, height - padding.bottom);
+			ctx.lineTo(width - padding.right, padding.top);
 			ctx.stroke();
 
 			ctx.fillStyle = '#1d2327';
@@ -2813,16 +2866,61 @@ function sr_render_graphs_page() {
 				ctx.stroke();
 			}
 
-			const barWidth = chartWidth / labels.length - 8;
-			data.forEach((value, index) => {
-				const barHeight = (value / maxValue) * chartHeight;
-				const x = padding.left + index * (chartWidth / labels.length) + 4;
-				const y = height - padding.bottom - barHeight;
-				ctx.fillStyle = '#2271b1';
-				ctx.fillRect(x, y, barWidth, barHeight);
+			for (let i = 0; i <= yTicks; i++) {
+				const value = balanceMin + (balanceRange / yTicks) * i;
+				const y = height - padding.bottom - (chartHeight / yTicks) * i;
+				const label = value.toLocaleString('da-DK', { maximumFractionDigits: 0 }) + ' kr.';
 				ctx.fillStyle = '#1d2327';
-				ctx.fillText(labels[index], x, height - padding.bottom + 18);
+				ctx.fillText(label, width - padding.right + 6, y + 4);
+			}
+
+			const getX = (index) => padding.left + (chartWidth / (labels.length - 1)) * index;
+			const getY = (value) => height - padding.bottom - (value / maxValue) * chartHeight;
+			const getBalanceY = (value) => height - padding.bottom - ((value - balanceMin) / balanceRange) * chartHeight;
+
+			const drawLine = (series, color, getYValue) => {
+				ctx.strokeStyle = color;
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				series.forEach((value, index) => {
+					const x = getX(index);
+					const y = getYValue(value);
+					if (index === 0) {
+						ctx.moveTo(x, y);
+					} else {
+						ctx.lineTo(x, y);
+					}
+				});
+				ctx.stroke();
+
+				ctx.fillStyle = color;
+				series.forEach((value, index) => {
+					const x = getX(index);
+					const y = getYValue(value);
+					ctx.beginPath();
+					ctx.arc(x, y, 3, 0, Math.PI * 2);
+					ctx.fill();
+				});
+			};
+
+			drawLine(data, '#2271b1', getY);
+			drawLine(balanceData, '#d63638', getBalanceY);
+
+			ctx.fillStyle = '#1d2327';
+			labels.forEach((label, index) => {
+				const x = getX(index);
+				ctx.fillText(label, x - 10, height - padding.bottom + 18);
 			});
+
+			ctx.lineWidth = 0;
+			ctx.fillStyle = '#2271b1';
+			ctx.fillRect(padding.left, padding.top - 18, 12, 12);
+			ctx.fillStyle = '#1d2327';
+			ctx.fillText('kWh', padding.left + 18, padding.top - 8);
+			ctx.fillStyle = '#d63638';
+			ctx.fillRect(padding.left + 70, padding.top - 18, 12, 12);
+			ctx.fillStyle = '#1d2327';
+			ctx.fillText('Saldo', padding.left + 88, padding.top - 8);
 		})();
 	</script>
 	<?php
