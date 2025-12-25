@@ -2686,7 +2686,7 @@ function sr_render_graphs_page() {
 	}
 
 	$selected_resident_id = isset( $_GET['resident_id'] ) ? absint( $_GET['resident_id'] ) : (int) $residents[0]->id;
-	$resident_ids         = wp_list_pluck( $residents, 'id' );
+	$resident_ids         = array_map( 'absint', wp_list_pluck( $residents, 'id' ) );
 	if ( ! in_array( $selected_resident_id, $resident_ids, true ) ) {
 		$selected_resident_id = (int) $residents[0]->id;
 	}
@@ -2700,7 +2700,7 @@ function sr_render_graphs_page() {
 
 	$current_year = (int) current_time( 'Y' );
 	$year_range   = range( $current_year, $current_year - 4 );
-	$year_options = array_unique( array_merge( $available_years, $year_range ) );
+	$year_options = array_map( 'absint', array_unique( array_merge( $available_years, $year_range ) ) );
 	rsort( $year_options );
 
 	$selected_year = isset( $_GET['year'] ) ? absint( $_GET['year'] ) : 0;
