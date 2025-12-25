@@ -2819,7 +2819,6 @@ function sr_render_bank_statement_link_page() {
 					<input type="checkbox" name="sr_hide_negative" value="1" <?php checked( $hide_negative ); ?>>
 					Skjul negative posteringer
 				</label>
-				<button type="submit" class="button">Opdater</button>
 			</form>
 			<button type="submit" name="sr_link_bank_payment" class="button button-primary" form="sr-link-payments-form">Tilknyt</button>
 		</div>
@@ -2887,6 +2886,13 @@ function sr_render_bank_statement_link_page() {
 		?>
 	</div>
 	<script>
+		const hideNegativeToggle = document.querySelector('input[name="sr_hide_negative"]');
+		if (hideNegativeToggle && hideNegativeToggle.form) {
+			hideNegativeToggle.addEventListener('change', () => {
+				hideNegativeToggle.form.submit();
+			});
+		}
+
 		document.querySelectorAll('.sr-link-payment-row').forEach((row) => {
 			const memberSelect = row.querySelector('.sr-link-payment-member');
 			const nameSelect = row.querySelector('.sr-link-payment-name');
