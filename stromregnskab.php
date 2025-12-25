@@ -480,6 +480,25 @@ function sr_get_bank_statement_label( $row ) {
 }
 
 /**
+ * Determine amount class for styling.
+ *
+ * @param float $amount Amount value.
+ * @return string
+ */
+function sr_get_amount_class( $amount ) {
+	$amount = (float) $amount;
+	if ( $amount < 0 ) {
+		return 'sr-negative';
+	}
+
+	if ( $amount > 0 ) {
+		return 'sr-positive';
+	}
+
+	return '';
+}
+
+/**
  * Normalize bank statement text.
  *
  * @param string $text Raw text.
@@ -1112,7 +1131,9 @@ function sr_render_admin_dashboard() {
 							<td><?php echo esc_html( $payment->submitted_at ); ?></td>
 							<td><?php echo esc_html( $resident_name ); ?></td>
 							<td><?php echo esc_html( $payment->period_month . '/' . $payment->period_year ); ?></td>
-							<td><?php echo esc_html( $payment->amount ); ?></td>
+							<td class="<?php echo esc_attr( sr_get_amount_class( $payment->amount ) ); ?>">
+								<?php echo esc_html( $payment->amount ); ?>
+							</td>
 							<td>
 								<form method="post">
 									<?php wp_nonce_field( 'sr_verify_pending_payment_action', 'sr_verify_pending_payment_nonce' ); ?>
@@ -2191,7 +2212,9 @@ function sr_render_payments_page() {
 						<td><?php echo esc_html( $payment->submitted_at ); ?></td>
 						<td><?php echo esc_html( $resident_name ); ?></td>
 						<td><?php echo esc_html( $payment->period_month . '/' . $payment->period_year ); ?></td>
-						<td><?php echo esc_html( $payment->amount ); ?></td>
+						<td class="<?php echo esc_attr( sr_get_amount_class( $payment->amount ) ); ?>">
+							<?php echo esc_html( $payment->amount ); ?>
+						</td>
 						<td><?php echo esc_html( $payment->status ); ?></td>
 						<td>
 							<form method="post" class="sr-inline-form">
@@ -3169,8 +3192,12 @@ function sr_render_bank_statements_page() {
 						<tr>
 							<td><?php echo esc_html( $row->Dato ); ?></td>
 							<td><?php echo esc_html( $row->Tekst ); ?></td>
-							<td><?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?></td>
-							<td><?php echo esc_html( number_format( (float) $row->Saldo, 2, ',', '.' ) ); ?></td>
+							<td class="<?php echo esc_attr( sr_get_amount_class( $row->Beløb ) ); ?>">
+								<?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?>
+							</td>
+							<td class="<?php echo esc_attr( sr_get_amount_class( $row->Saldo ) ); ?>">
+								<?php echo esc_html( number_format( (float) $row->Saldo, 2, ',', '.' ) ); ?>
+							</td>
 						</tr>
 					<?php endforeach; ?>
 				<?php endif; ?>
@@ -3380,7 +3407,9 @@ function sr_render_bank_statement_link_page() {
 						<tr class="sr-link-payment-row">
 							<td><?php echo esc_html( $row->Dato ); ?></td>
 							<td><?php echo esc_html( $row->Tekst ); ?></td>
-							<td><?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?></td>
+							<td class="<?php echo esc_attr( sr_get_amount_class( $row->Beløb ) ); ?>">
+								<?php echo esc_html( number_format( (float) $row->Beløb, 2, ',', '.' ) ); ?>
+							</td>
 							<td>
 								<?php if ( $row->payment_id ) : ?>
 									<?php echo esc_html( $resident_member_numbers[ (int) $row->linked_resident_id ] ?? 'Ukendt' ); ?>
@@ -3798,7 +3827,13 @@ function sr_resident_dashboard_shortcode() {
 		<h3>Indbetalinger</h3>
 		<ul>
 			<?php foreach ( $payments as $payment ) : ?>
-				<li><?php echo esc_html( $payment->period_month . '/' . $payment->period_year . ' - ' . $payment->amount . ' kr. (' . $payment->status . ')' ); ?></li>
+				<li>
+					<?php echo esc_html( $payment->period_month . '/' . $payment->period_year . ' - ' ); ?>
+					<span class="<?php echo esc_attr( sr_get_amount_class( $payment->amount ) ); ?>">
+						<?php echo esc_html( $payment->amount ); ?> kr.
+					</span>
+					<?php echo esc_html( ' (' . $payment->status . ')' ); ?>
+				</li>
 			<?php endforeach; ?>
 		</ul>
 
@@ -3818,7 +3853,7 @@ function sr_resident_dashboard_shortcode() {
 						<td><?php echo esc_html( $row->period_month . '/' . $row->period_year ); ?></td>
 						<td><?php echo esc_html( $row->consumption_kwh ); ?></td>
 						<td><?php echo esc_html( $row->price_per_kwh ); ?></td>
-						<td class="<?php echo esc_attr( $row->cost > 0 ? 'sr-negative' : 'sr-positive' ); ?>">
+						<td class="<?php echo esc_attr( sr_get_amount_class( $row->cost ) ); ?>">
 							<?php echo esc_html( number_format( $row->cost, 2, ',', '.' ) ); ?> kr.
 						</td>
 					</tr>
@@ -3854,7 +3889,7 @@ function sr_enqueue_admin_styles( $hook ) {
 
 	wp_add_inline_style(
 		'common',
-		'.sr-negative{color:#b00020;font-weight:600}.sr-positive{color:#1a7f37;font-weight:600}'
+		'.sr-negative{color:#b00020;font-weight:600}.sr-positive{color:#1a7f37;font-weight:600}body[class*="stromregnskab"] table.widefat{table-layout:auto}body[class*="stromregnskab"] table.widefat th,body[class*="stromregnskab"] table.widefat td{padding:6px 8px;white-space:normal}'
 	);
 }
 add_action( 'admin_enqueue_scripts', 'sr_enqueue_admin_styles' );
