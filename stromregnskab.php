@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SR_PLUGIN_VERSION', '0.1.0' );
 define( 'SR_PLUGIN_SLUG', 'stromregnskab' );
-define( 'SR_CAPABILITY_ADMIN', 'manage_options' );
+define( 'SR_CAPABILITY_ADMIN', 'manage_stromregnskab' );
 define( 'SR_CAPABILITY_RESIDENT', 'submit_energy_reports' );
 
 /**
@@ -171,9 +171,26 @@ function sr_activate_plugin() {
 		)
 	);
 
+	sr_add_admin_capability();
 	sr_maybe_create_resident_graphs_page();
 }
 register_activation_hook( __FILE__, 'sr_activate_plugin' );
+
+/**
+ * Ensure administrators have access to the plugin admin capabilities.
+ */
+function sr_add_admin_capability() {
+	$admin_role = get_role( 'administrator' );
+	if ( ! $admin_role instanceof WP_Role ) {
+		return;
+	}
+
+	if ( ! $admin_role->has_cap( SR_CAPABILITY_ADMIN ) ) {
+		$admin_role->add_cap( SR_CAPABILITY_ADMIN );
+	}
+}
+
+add_action( 'admin_init', 'sr_add_admin_capability' );
 
 /**
  * Create resident graphs page on activation if it does not exist.
