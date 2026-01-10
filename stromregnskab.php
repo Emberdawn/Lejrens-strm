@@ -373,7 +373,7 @@ function sr_register_admin_menu() {
 	add_submenu_page( SR_PLUGIN_SLUG, 'Periodelåsning', 'Periodelåsning', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-locks', 'sr_render_locks_page' );
 	add_submenu_page( SR_PLUGIN_SLUG, 'CSV-indstillinger', 'CSV-indstillinger', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-csv-settings', 'sr_render_csv_settings_page' );
 	add_submenu_page( SR_PLUGIN_SLUG, 'CSV-eksport', 'CSV-eksport', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-export', 'sr_render_export_page' );
-	add_submenu_page( SR_PLUGIN_SLUG, 'Bankudtog', 'Bankudtog', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-bank-statements', 'sr_render_bank_statements_page' );
+	add_submenu_page( SR_PLUGIN_SLUG, 'Kontoudtog', 'Kontoudtog', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-bank-statements', 'sr_render_bank_statements_page' );
 	add_submenu_page( SR_PLUGIN_SLUG, 'Tilknyt betalinger', 'Tilknyt betalinger', SR_CAPABILITY_ADMIN, SR_PLUGIN_SLUG . '-bank-link-payments', 'sr_render_bank_statement_link_page' );
 }
 add_action( 'admin_menu', 'sr_register_admin_menu' );
@@ -3811,8 +3811,18 @@ function sr_render_bank_statements_page() {
 	$delimiter_display = "\t" === $delimiter ? '\\t' : $delimiter;
 	?>
 	<div class="wrap">
-		<h1>Bankudtog</h1>
+		<h1>Kontoudtog</h1>
 		<?php echo wp_kses_post( $message ); ?>
+		<?php
+		$settings_page_url = admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-csv-settings' );
+		$csvlint_status    = $csvlint_settings['enabled'] ? 'CSVLint-validering er aktiv.' : 'CSVLint-validering er deaktiveret.';
+		?>
+		<div class="notice notice-info">
+			<p>
+				<?php echo esc_html( $csvlint_status ); ?>
+				<a href="<?php echo esc_url( $settings_page_url ); ?>">Åbn CSV-indstillinger</a>.
+			</p>
+		</div>
 		<?php if ( '' !== $popup_message ) : ?>
 			<script>
 				(function() {
