@@ -3697,6 +3697,7 @@ function sr_render_bank_statements_page() {
 	$message               = '';
 	$csvlint_notice        = '';
 	$popup_message         = '';
+	$upload_feedback_lines = array();
 	$column_count_value    = $default_column_count;
 	$column_mapping_value  = $default_mapping;
 	$delimiter_value       = $default_delimiter;
@@ -3729,18 +3730,23 @@ function sr_render_bank_statements_page() {
 		}
 
 		if ( ! $mapping_valid ) {
-			$message = '<div class="notice notice-error"><p>Vælg unikke CSV-kolonner inden for det angivne antal kolonner.</p></div>';
+			$message                 = '<div class="notice notice-error"><p>Vælg unikke CSV-kolonner inden for det angivne antal kolonner.</p></div>';
+			$upload_feedback_lines[] = 'Fejl: Vælg unikke CSV-kolonner inden for det angivne antal kolonner.';
 		} elseif ( ! $file || ! isset( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-			$message = '<div class="notice notice-error"><p>Kunne ikke finde filen. Prøv venligst igen.</p></div>';
+			$message                 = '<div class="notice notice-error"><p>Kunne ikke finde filen. Prøv venligst igen.</p></div>';
+			$upload_feedback_lines[] = 'Fejl: Kunne ikke finde filen. Prøv venligst igen.';
 		} elseif ( ! empty( $file['error'] ) ) {
-			$message = '<div class="notice notice-error"><p>Der opstod en fejl under upload af filen.</p></div>';
+			$message                 = '<div class="notice notice-error"><p>Der opstod en fejl under upload af filen.</p></div>';
+			$upload_feedback_lines[] = 'Fejl: Der opstod en fejl under upload af filen.';
 		} else {
 			if ( $csvlint_checked ) {
 				$validation = sr_run_csvlint_validation( $file, $csvlint_settings );
 				if ( ! $validation['valid'] ) {
-					$message = '<div class="notice notice-error"><p>' . esc_html( $validation['message'] ) . '</p></div>';
+					$message                 = '<div class="notice notice-error"><p>' . esc_html( $validation['message'] ) . '</p></div>';
+					$upload_feedback_lines[] = 'CSVLint fejl: ' . $validation['message'];
 				} else {
-					$csvlint_notice = '<div class="notice notice-info"><p>' . esc_html( $validation['message'] ) . '</p></div>';
+					$csvlint_notice           = '<div class="notice notice-info"><p>' . esc_html( $validation['message'] ) . '</p></div>';
+					$upload_feedback_lines[]  = $validation['message'];
 				}
 			}
 		}
@@ -3754,7 +3760,8 @@ function sr_render_bank_statements_page() {
 			$contents = file_get_contents( $file['tmp_name'] );
 
 			if ( false === $contents ) {
-				$message = '<div class="notice notice-error"><p>Kunne ikke åbne CSV-filen.</p></div>';
+				$message                 = '<div class="notice notice-error"><p>Kunne ikke åbne CSV-filen.</p></div>';
+				$upload_feedback_lines[] = 'Fejl: Kunne ikke åbne CSV-filen.';
 			} else {
 				if ( false !== strpos( $contents, '\\n' ) ) {
 					$contents = str_replace( '\\n', "\n", $contents );
@@ -3903,6 +3910,12 @@ function sr_render_bank_statements_page() {
 					}
 				}
 
+				$summary_line = sprintf(
+					'Indlæsning fuldført. Læste %d rækker, tilføjede %d rækker, sprang %d rækker over (duplikater).',
+					$read_rows,
+					$added,
+					$skipped
+				);
 				$message = '<div class="notice notice-success"><p>' .
 					sprintf(
 						'Indlæsning fuldført. Læste %d rækker, tilføjede %d rækker, sprang %d rækker over (duplikater).',
@@ -3911,26 +3924,34 @@ function sr_render_bank_statements_page() {
 						$skipped
 					) .
 					'</p></div>';
+				$upload_feedback_lines[] = $summary_line;
 				if ( '' !== $csvlint_notice ) {
 					$message = $csvlint_notice . $message;
 				}
 
 				if ( ! empty( $auto_created ) ) {
+					$upload_feedback_lines[] = 'Auto-tilknyttede indbetalinger:';
 					$list_items = array();
 					foreach ( $auto_created as $auto_row ) {
 						$label = trim( $auto_row['member_number'] . ' ' . $auto_row['resident_name'] );
-						$list_items[] = sprintf(
+						$created_item = sprintf(
 							'%s (%s) - %s kr. - %s',
 							$label,
 							$auto_row['date'],
 							number_format( (float) $auto_row['amount'], 2, ',', '.' ),
 							$auto_row['text']
 						);
+						$list_items[]            = $created_item;
+						$upload_feedback_lines[] = $created_item;
 					}
 					$message .= '<div class="notice notice-success"><p>Auto-tilknyttede indbetalinger:</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', $list_items ) ) . '</li></ul></div>';
 				}
 
 				if ( ! empty( $auto_errors ) ) {
+					$upload_feedback_lines[] = 'Auto-tilknytning kunne ikke gennemføres for følgende linjer:';
+					foreach ( $auto_errors as $auto_error ) {
+						$upload_feedback_lines[] = $auto_error;
+					}
 					$message .= '<div class="notice notice-error"><p>Auto-tilknytning kunne ikke gennemføres for følgende linjer:</p><ul><li>' . implode( '</li><li>', array_map( 'esc_html', $auto_errors ) ) . '</li></ul></div>';
 				}
 				$popup_message = sprintf(
@@ -3993,6 +4014,14 @@ function sr_render_bank_statements_page() {
 					height: 24px;
 					width: auto;
 					vertical-align: middle;
+				}
+				.sr-upload-feedback {
+					margin-top: 12px;
+					max-width: 640px;
+				}
+				.sr-upload-feedback textarea {
+					min-height: 160px;
+					width: 100%;
 				}
 			</style>
 			<table class="form-table">
@@ -4086,6 +4115,12 @@ function sr_render_bank_statements_page() {
 					<img src="https://csvlint.io/images/csvlint-badge.png" alt="CSVLint badge">
 				</a>
 			</div>
+			<?php if ( ! empty( $upload_feedback_lines ) ) : ?>
+				<div class="sr-upload-feedback">
+					<label for="sr-upload-feedback">Status</label>
+					<textarea id="sr-upload-feedback" class="large-text code" readonly><?php echo esc_textarea( implode( "\n", $upload_feedback_lines ) ); ?></textarea>
+				</div>
+			<?php endif; ?>
 		</form>
 
 		<h2>Importerede banklinjer</h2>
