@@ -3455,19 +3455,23 @@ function sr_render_bank_statements_page() {
 	$message               = '';
 	$popup_message         = '';
 	$saved_column_count    = absint( get_option( 'sr_csv_column_count', $default_column_count ) );
+	$saved_delimiter       = sanitize_text_field( get_option( 'sr_csv_delimiter', $default_delimiter ) );
 	$column_count_raw      = absint( $_POST['sr_csv_column_count'] ?? $saved_column_count );
 	$column_count_value    = max( $default_column_count, $column_count_raw );
 	$column_configs        = $default_column_configs;
-	$delimiter_value       = $default_delimiter;
+	$delimiter_value       = in_array( $saved_delimiter, array( ';', ',', 'tab' ), true ) ? $saved_delimiter : $default_delimiter;
 	$allowed_types         = array( 'currency', 'date', 'text' );
 
-	if ( isset( $_POST['sr_save_column_count'] ) ) {
+	if ( isset( $_POST['sr_save_column_settings'] ) ) {
 		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
+		$delimiter_value = sanitize_text_field( wp_unslash( $_POST['sr_csv_delimiter'] ?? $delimiter_value ) );
+		$delimiter_value = in_array( $delimiter_value, array( ';', ',', 'tab' ), true ) ? $delimiter_value : $default_delimiter;
 		if ( $column_count_raw < $default_column_count ) {
 			$message = '<div class="notice notice-error"><p>CSV Kolonne antal skal være mindst 4.</p></div>';
 		} else {
 			update_option( 'sr_csv_column_count', $column_count_value );
-			$message = '<div class="notice notice-success"><p>CSV Kolonne antal er gemt.</p></div>';
+			update_option( 'sr_csv_delimiter', $delimiter_value );
+			$message = '<div class="notice notice-success"><p>CSV-indstillinger er gemt.</p></div>';
 		}
 	} elseif ( isset( $_POST['sr_upload_bank_csv'] ) ) {
 		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
@@ -3810,10 +3814,7 @@ function sr_render_bank_statements_page() {
 				<tr>
 					<th scope="row">CSV Kolonne antal</th>
 					<td>
-						<div style="display: inline-flex; align-items: center; gap: 8px;">
-							<input type="number" name="sr_csv_column_count" min="4" value="<?php echo esc_attr( $column_count_value ); ?>" required>
-							<button type="submit" name="sr_save_column_count" class="button" formnovalidate>Gem</button>
-						</div>
+						<input type="number" name="sr_csv_column_count" min="4" value="<?php echo esc_attr( $column_count_value ); ?>" required>
 						<p class="description">Angiv hvor mange kolonner CSV-filen indeholder (minimum 4).</p>
 					</td>
 				</tr>
@@ -3876,7 +3877,10 @@ function sr_render_bank_statements_page() {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-			<?php submit_button( 'Upload CSV', 'primary', 'sr_upload_bank_csv' ); ?>
+			<p class="submit">
+				<button type="submit" name="sr_save_column_settings" class="button button-secondary" formnovalidate>Gem</button>
+				<button type="submit" name="sr_upload_bank_csv" class="button button-primary">Upload CSV</button>
+			</p>
 		</form>
 
 		<h2>Importerede banklinjer</h2>
