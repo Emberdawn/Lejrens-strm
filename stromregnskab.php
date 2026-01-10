@@ -3381,6 +3381,7 @@ function sr_render_bank_statements_page() {
 		'amount'  => 3,
 		'balance' => 4,
 	);
+	$default_delimiter = ';';
 	global $wpdb;
 	$table_bank_statements = $wpdb->prefix . 'sr_bank_statements';
 	$table_payments        = $wpdb->prefix . 'sr_payments';
@@ -3391,6 +3392,7 @@ function sr_render_bank_statements_page() {
 	$popup_message         = '';
 	$column_count_value    = $default_column_count;
 	$column_mapping_value  = $default_mapping;
+	$delimiter_value       = $default_delimiter;
 
 	if ( isset( $_POST['sr_upload_bank_csv'] ) ) {
 		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
@@ -3402,6 +3404,8 @@ function sr_render_bank_statements_page() {
 			'amount'  => absint( $_POST['sr_csv_map_amount'] ?? $default_mapping['amount'] ),
 			'balance' => absint( $_POST['sr_csv_map_balance'] ?? $default_mapping['balance'] ),
 		);
+		$delimiter_value = sanitize_text_field( wp_unslash( $_POST['sr_csv_delimiter'] ?? $default_delimiter ) );
+		$delimiter_value = in_array( $delimiter_value, array( ';', ',', 'tab' ), true ) ? $delimiter_value : $default_delimiter;
 
 		$mapping_values = array_values( $column_mapping_value );
 		$mapping_unique = array_unique( $mapping_values );
@@ -3442,6 +3446,7 @@ function sr_render_bank_statements_page() {
 				$amount_index  = $column_mapping_value['amount'] - 1;
 				$balance_index = $column_mapping_value['balance'] - 1;
 				$max_index     = max( $date_index, $text_index, $amount_index, $balance_index );
+				$delimiter     = 'tab' === $delimiter_value ? "\t" : $delimiter_value;
 
 				foreach ( $lines as $line ) {
 					$trimmed_line = trim( $line );
@@ -3454,7 +3459,7 @@ function sr_render_bank_statements_page() {
 						continue;
 					}
 
-					$row = str_getcsv( $line, ';' );
+					$row = str_getcsv( $line, $delimiter );
 
 					if ( empty( array_filter( $row, 'strlen' ) ) ) {
 						continue;
@@ -3631,6 +3636,11 @@ function sr_render_bank_statements_page() {
 		)
 	);
 	$column_options = range( 1, $column_count_value );
+	$delimiter_options = array(
+		';'   => '; (semikolon)',
+		','   => ', (komma)',
+		'tab' => 'Tabulator',
+	);
 	?>
 	<div class="wrap">
 		<h1>Bankudtog</h1>
@@ -3650,6 +3660,19 @@ function sr_render_bank_statements_page() {
 					<td>
 						<input type="file" name="sr_bank_csv" accept=".csv,text/csv" required>
 						<p class="description">CSV-filen bruges sammen med kolonnemappingen nedenfor.</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">Afgrænser</th>
+					<td>
+						<select name="sr_csv_delimiter">
+							<?php foreach ( $delimiter_options as $delimiter_key => $delimiter_label ) : ?>
+								<option value="<?php echo esc_attr( $delimiter_key ); ?>" <?php selected( $delimiter_value, $delimiter_key ); ?>>
+									<?php echo esc_html( $delimiter_label ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<p class="description">Vælg hvilket tegn der adskiller felterne i CSV-filen.</p>
 					</td>
 				</tr>
 			</table>
