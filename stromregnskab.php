@@ -3395,10 +3395,6 @@ function sr_render_bank_statements_page() {
 	if ( isset( $_POST['sr_upload_bank_csv'] ) ) {
 		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
 		$file = $_FILES['sr_bank_csv'] ?? null;
-		$column_count_value = absint( $_POST['sr_csv_columns_count'] ?? $default_column_count );
-		if ( $column_count_value < 1 ) {
-			$column_count_value = $default_column_count;
-		}
 
 		$column_mapping_value = array(
 			'date'    => absint( $_POST['sr_csv_map_date'] ?? $default_mapping['date'] ),
@@ -3656,13 +3652,6 @@ function sr_render_bank_statements_page() {
 						<p class="description">CSV-filen bruges sammen med kolonnemappingen nedenfor.</p>
 					</td>
 				</tr>
-				<tr>
-					<th scope="row">Antal kolonner</th>
-					<td>
-						<input type="number" id="sr_csv_columns_count" name="sr_csv_columns_count" min="1" value="<?php echo esc_attr( $column_count_value ); ?>" required>
-						<p class="description">Angiver hvor mange CSV-kolonner der er i filen.</p>
-					</td>
-				</tr>
 			</table>
 			<h2>Kolonnemapping</h2>
 			<table class="widefat striped">
@@ -3725,54 +3714,6 @@ function sr_render_bank_statements_page() {
 			</table>
 			<?php submit_button( 'Upload CSV', 'primary', 'sr_upload_bank_csv' ); ?>
 		</form>
-		<script>
-			(function() {
-				const columnInput = document.getElementById('sr_csv_columns_count');
-				const selects = Array.from(document.querySelectorAll('.sr-csv-map'));
-
-				if (!columnInput || selects.length === 0) {
-					return;
-				}
-
-				const buildOptions = () => {
-					const columnCount = Math.max(1, parseInt(columnInput.value, 10) || 1);
-					const selectedValues = selects
-						.map((select) => select.value)
-						.filter((value) => value !== '');
-
-					selects.forEach((select) => {
-						const currentValue = select.value || select.dataset.selected || '';
-						const usedByOthers = selectedValues.filter((value) => value !== currentValue);
-						select.innerHTML = '';
-
-						const placeholder = document.createElement('option');
-						placeholder.value = '';
-						placeholder.textContent = 'Vælg kolonne';
-						select.appendChild(placeholder);
-
-						for (let i = 1; i <= columnCount; i += 1) {
-							const value = String(i);
-							if (usedByOthers.includes(value)) {
-								continue;
-							}
-							const option = document.createElement('option');
-							option.value = value;
-							option.textContent = value;
-							if (value === currentValue) {
-								option.selected = true;
-							}
-							select.appendChild(option);
-						}
-					});
-				};
-
-				selects.forEach((select) => {
-					select.addEventListener('change', buildOptions);
-				});
-				columnInput.addEventListener('input', buildOptions);
-				buildOptions();
-			}());
-		</script>
 
 		<h2>Importerede banklinjer</h2>
 		<table class="widefat striped">
