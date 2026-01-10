@@ -3454,13 +3454,22 @@ function sr_render_bank_statements_page() {
 	$current_page          = sr_get_paged_param( 'sr_page' );
 	$message               = '';
 	$popup_message         = '';
-	$column_count_raw      = absint( $_POST['sr_csv_column_count'] ?? $default_column_count );
+	$saved_column_count    = absint( get_option( 'sr_csv_column_count', $default_column_count ) );
+	$column_count_raw      = absint( $_POST['sr_csv_column_count'] ?? $saved_column_count );
 	$column_count_value    = max( $default_column_count, $column_count_raw );
 	$column_configs        = $default_column_configs;
 	$delimiter_value       = $default_delimiter;
 	$allowed_types         = array( 'currency', 'date', 'text' );
 
-	if ( isset( $_POST['sr_upload_bank_csv'] ) ) {
+	if ( isset( $_POST['sr_save_column_count'] ) ) {
+		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
+		if ( $column_count_raw < $default_column_count ) {
+			$message = '<div class="notice notice-error"><p>CSV Kolonne antal skal være mindst 4.</p></div>';
+		} else {
+			update_option( 'sr_csv_column_count', $column_count_value );
+			$message = '<div class="notice notice-success"><p>CSV Kolonne antal er gemt.</p></div>';
+		}
+	} elseif ( isset( $_POST['sr_upload_bank_csv'] ) ) {
 		check_admin_referer( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' );
 		$file = $_FILES['sr_bank_csv'] ?? null;
 
@@ -3801,7 +3810,10 @@ function sr_render_bank_statements_page() {
 				<tr>
 					<th scope="row">CSV Kolonne antal</th>
 					<td>
-						<input type="number" name="sr_csv_column_count" min="4" value="<?php echo esc_attr( $column_count_value ); ?>" required>
+						<div style="display: inline-flex; align-items: center; gap: 8px;">
+							<input type="number" name="sr_csv_column_count" min="4" value="<?php echo esc_attr( $column_count_value ); ?>" required>
+							<button type="submit" name="sr_save_column_count" class="button" formnovalidate>Gem</button>
+						</div>
 						<p class="description">Angiv hvor mange kolonner CSV-filen indeholder (minimum 4).</p>
 					</td>
 				</tr>
