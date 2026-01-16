@@ -1269,21 +1269,6 @@ function sr_render_admin_dashboard() {
 		</table>
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG ), $payments_page, $payments_pages, 'sr_payments_page' ); ?>
 	</div>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -1393,7 +1378,7 @@ function sr_render_residents_page() {
 				</tr>
 			</table>
 			<?php submit_button( 'Opret beboer', 'primary', 'sr_add_resident', false, array( 'id' => 'sr_resident_submit' ) ); ?>
-			<button type="button" class="button" id="sr_resident_cancel" style="display:none;">Afbryd</button>
+			<button type="button" class="button sr-hidden" id="sr_resident_cancel">Afbryd</button>
 		</form>
 
 		<h2>Eksisterende beboere</h2>
@@ -1442,70 +1427,15 @@ function sr_render_residents_page() {
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-residents' ), $current_page, $total_pages ); ?>
 	</div>
 	<?php if ( $duplicate_owner ) : ?>
-		<script>
-			window.addEventListener('load', () => {
-				window.alert(
-					'Medlemsnummeret <?php echo esc_js( $member_num ); ?> tilhører allerede <?php echo esc_js( $duplicate_owner->name ); ?>. Ingen ændringer blev gemt.'
-				);
-			});
-		</script>
+		<?php
+		$duplicate_message = sprintf(
+			'Medlemsnummeret %s tilhører allerede %s. Ingen ændringer blev gemt.',
+			$member_num,
+			$duplicate_owner->name
+		);
+		?>
+		<div class="sr-popup-message" data-message="<?php echo esc_attr( $duplicate_message ); ?>"></div>
 	<?php endif; ?>
-	<script>
-		(function () {
-			const form = document.getElementById('sr-resident-form');
-			if (!form) {
-				return;
-			}
-			const submitButton = document.getElementById('sr_resident_submit');
-			const cancelButton = document.getElementById('sr_resident_cancel');
-			const residentId = document.getElementById('sr_resident_id');
-			const nameField = document.getElementById('name');
-			const memberField = document.getElementById('member_number');
-			const userField = document.getElementById('wp_user_id');
-			const defaultLabel = submitButton ? submitButton.value : '';
-
-			document.querySelectorAll('.sr-fill-resident').forEach((button) => {
-				button.addEventListener('click', () => {
-					nameField.value = button.dataset.name || '';
-					memberField.value = button.dataset.memberNumber || '';
-					userField.value = button.dataset.wpUserId || '';
-					residentId.value = button.dataset.residentId || '';
-					if (submitButton) {
-						submitButton.value = 'Gem';
-					}
-					if (cancelButton) {
-						cancelButton.style.display = 'inline-block';
-					}
-				});
-			});
-
-			if (cancelButton) {
-				cancelButton.addEventListener('click', () => {
-					form.reset();
-					residentId.value = '';
-					if (submitButton) {
-						submitButton.value = defaultLabel;
-					}
-					cancelButton.style.display = 'none';
-				});
-			}
-		}());
-	</script>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -1562,7 +1492,7 @@ function sr_render_account_text_page() {
 	<div class="wrap">
 		<h1>Kontotekst</h1>
 		<?php echo wp_kses_post( $message ); ?>
-		<form method="get" style="display:flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+		<form method="get" class="sr-account-text-form">
 			<input type="hidden" name="page" value="<?php echo esc_attr( SR_PLUGIN_SLUG . '-account-text' ); ?>">
 			<div>
 				<label for="sr_account_text_resident">Beboer</label><br>
@@ -1787,7 +1717,7 @@ function sr_render_readings_page() {
 				</tr>
 			</table>
 			<?php submit_button( 'Indtast', 'primary', 'sr_add_reading', false, array( 'id' => 'sr_reading_submit' ) ); ?>
-			<button type="button" class="button" id="sr_reading_cancel" style="display:none;">Afbryd</button>
+			<button type="button" class="button sr-hidden" id="sr_reading_cancel">Afbryd</button>
 		</form>
 
 		<h2>Indberetninger</h2>
@@ -1844,76 +1774,6 @@ function sr_render_readings_page() {
 		</table>
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-readings' ), $current_page, $total_pages ); ?>
 	</div>
-	<script>
-		(function () {
-			const form = document.getElementById('sr-reading-form');
-			if (!form) {
-				return;
-			}
-			const submitButton = document.getElementById('sr_reading_submit');
-			const cancelButton = document.getElementById('sr_reading_cancel');
-			const readingId = document.getElementById('sr_reading_id');
-			const residentField = document.getElementById('sr_reading_resident');
-			const monthField = document.getElementById('sr_reading_month');
-			const yearField = document.getElementById('sr_reading_year');
-			const readingField = document.getElementById('sr_reading_value');
-			const verifiedField = document.getElementById('sr_reading_verified');
-			const defaultLabel = submitButton ? submitButton.value : '';
-			const currentMonth = form.dataset.currentMonth || '';
-			const currentYear = form.dataset.currentYear || '';
-
-			document.querySelectorAll('.sr-fill-reading').forEach((button) => {
-				button.addEventListener('click', () => {
-					residentField.value = button.dataset.residentId || '';
-					monthField.value = button.dataset.periodMonth || currentMonth;
-					yearField.value = button.dataset.periodYear || currentYear;
-					readingField.value = button.dataset.readingKwh || '';
-					readingId.value = button.dataset.readingId || '';
-					if (verifiedField) {
-						verifiedField.checked = button.dataset.status === 'verified';
-					}
-					if (submitButton) {
-						submitButton.value = 'Gem';
-					}
-					if (cancelButton) {
-						cancelButton.style.display = 'inline-block';
-					}
-				});
-			});
-
-			if (cancelButton) {
-				cancelButton.addEventListener('click', () => {
-					form.reset();
-					readingId.value = '';
-					residentField.value = '';
-					monthField.value = currentMonth;
-					yearField.value = currentYear;
-					if (verifiedField) {
-						verifiedField.checked = false;
-					}
-					if (submitButton) {
-						submitButton.value = defaultLabel;
-					}
-					cancelButton.style.display = 'none';
-				});
-			}
-		}());
-	</script>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -2283,7 +2143,7 @@ function sr_render_payments_page() {
 				</tr>
 			</table>
 			<?php submit_button( 'Indtast', 'primary', 'sr_add_payment', false, array( 'id' => 'sr_payment_submit' ) ); ?>
-			<button type="button" class="button" id="sr_payment_cancel" style="display:none;">Afbryd</button>
+			<button type="button" class="button sr-hidden" id="sr_payment_cancel">Afbryd</button>
 		</form>
 
 		<h2>Indberetninger</h2>
@@ -2374,119 +2234,6 @@ function sr_render_payments_page() {
 		</table>
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-payments' ), $current_page, $total_pages ); ?>
 	</div>
-	<script>
-		(function () {
-			const form = document.getElementById('sr-payment-form');
-			if (!form) {
-				return;
-			}
-			const submitButton = document.getElementById('sr_payment_submit');
-			const cancelButton = document.getElementById('sr_payment_cancel');
-			const paymentId = document.getElementById('sr_payment_id');
-			const residentField = document.getElementById('sr_payment_resident');
-			const monthField = document.getElementById('sr_payment_month');
-			const yearField = document.getElementById('sr_payment_year');
-			const amountField = document.getElementById('sr_payment_amount');
-			const verifiedField = document.getElementById('sr_payment_verified');
-			const bankStatementField = document.getElementById('sr_payment_bank_statement');
-			const defaultLabel = submitButton ? submitButton.value : '';
-			const currentMonth = form.dataset.currentMonth || '';
-			const currentYear = form.dataset.currentYear || '';
-			const updateAmountFromStatement = (statementField) => {
-				if (!statementField || !amountField) {
-					return;
-				}
-				const selectedOption = statementField.options[statementField.selectedIndex];
-				if (!selectedOption) {
-					return;
-				}
-				const optionAmount = selectedOption.dataset.amount;
-				if (optionAmount) {
-					amountField.value = optionAmount;
-				}
-			};
-
-			document.querySelectorAll('.sr-fill-payment').forEach((button) => {
-				button.addEventListener('click', () => {
-					residentField.value = button.dataset.residentId || '';
-					monthField.value = button.dataset.periodMonth || currentMonth;
-					yearField.value = button.dataset.periodYear || currentYear;
-					amountField.value = button.dataset.amount || '';
-					paymentId.value = button.dataset.paymentId || '';
-					if (verifiedField) {
-						verifiedField.checked = button.dataset.status === 'verified';
-					}
-					if (bankStatementField) {
-						const bankStatementId = button.dataset.bankStatementId || '';
-						const bankStatementLabel = button.dataset.bankStatementLabel || '';
-						const bankStatementAmount = button.dataset.bankStatementAmount || '';
-						if (bankStatementId) {
-							let option = bankStatementField.querySelector(`option[value="${bankStatementId}"]`);
-							if (!option && bankStatementLabel) {
-								option = document.createElement('option');
-								option.value = bankStatementId;
-								option.textContent = bankStatementLabel;
-								if (bankStatementAmount) {
-									option.dataset.amount = bankStatementAmount;
-								}
-								bankStatementField.appendChild(option);
-							}
-							bankStatementField.value = bankStatementId;
-						} else {
-							bankStatementField.value = '';
-						}
-					}
-					if (submitButton) {
-						submitButton.value = 'Gem';
-					}
-					if (cancelButton) {
-						cancelButton.style.display = 'inline-block';
-					}
-				});
-			});
-
-			if (cancelButton) {
-				cancelButton.addEventListener('click', () => {
-					form.reset();
-					paymentId.value = '';
-					residentField.value = '';
-					monthField.value = currentMonth;
-					yearField.value = currentYear;
-					if (verifiedField) {
-						verifiedField.checked = false;
-					}
-					if (bankStatementField) {
-						bankStatementField.value = '';
-					}
-					if (submitButton) {
-						submitButton.value = defaultLabel;
-					}
-					cancelButton.style.display = 'none';
-				});
-			}
-
-			if (bankStatementField) {
-				bankStatementField.addEventListener('change', () => {
-					updateAmountFromStatement(bankStatementField);
-				});
-			}
-		}());
-	</script>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -2868,176 +2615,17 @@ function sr_get_resident_graph_context( $resident_id, $selected_year = 0 ) {
  * @param array  $total_payments_data Total payments values.
  * @param array  $month_labels Month labels.
  */
-function sr_render_graphs_script( $form_selector, $balance_canvas, $total_canvas, $balance_data, $total_cost_data, $total_payments_data, $month_labels ) {
+function sr_render_graph_data( $balance_canvas, $total_canvas, $balance_data, $total_cost_data, $total_payments_data, $month_labels ) {
 	?>
-	<script>
-		(function() {
-			const balanceData = <?php echo wp_json_encode( $balance_data ); ?>;
-			const totalCostData = <?php echo wp_json_encode( $total_cost_data ); ?>;
-			const totalPaymentsData = <?php echo wp_json_encode( $total_payments_data ); ?>;
-			const labels = <?php echo wp_json_encode( $month_labels ); ?>;
-			const form = document.querySelector('<?php echo esc_js( $form_selector ); ?>');
-			if (form) {
-				form.querySelectorAll('select').forEach((select) => {
-					select.addEventListener('change', () => form.submit());
-				});
-			}
-
-			const renderLineChart = (config) => {
-				const { canvasId, series, legend, valueLabelSeriesIndexes } = config;
-				const canvas = document.getElementById(canvasId);
-				if (!canvas || !canvas.getContext) {
-					return;
-				}
-
-				const ctx = canvas.getContext('2d');
-				const width = canvas.width;
-				const height = canvas.height;
-				ctx.clearRect(0, 0, width, height);
-
-				const padding = { top: 30, right: 90, bottom: 40, left: 60 };
-				const chartWidth = width - padding.left - padding.right;
-				const chartHeight = height - padding.top - padding.bottom;
-				const allValues = series.reduce((values, entry) => values.concat(entry.data), []);
-				const minValue = Math.min(0, ...allValues);
-				const maxValue = Math.max(0, ...allValues);
-				const valueRange = Math.max(1, maxValue - minValue);
-
-				ctx.strokeStyle = '#ccd0d4';
-				ctx.lineWidth = 1;
-				ctx.beginPath();
-				ctx.moveTo(padding.left, padding.top);
-				ctx.lineTo(padding.left, height - padding.bottom);
-				ctx.lineTo(width - padding.right, height - padding.bottom);
-				ctx.lineTo(width - padding.right, padding.top);
-				ctx.stroke();
-
-				ctx.fillStyle = '#1d2327';
-				ctx.font = '12px Arial, sans-serif';
-				const yTicks = 5;
-				for (let i = 0; i <= yTicks; i++) {
-					const value = minValue + (valueRange / yTicks) * i;
-					const y = height - padding.bottom - (chartHeight / yTicks) * i;
-					const label = Math.round(value).toLocaleString('da-DK', { maximumFractionDigits: 0 }) + ' kr.';
-					ctx.fillText(label, 8, y + 4);
-					ctx.strokeStyle = '#f0f0f1';
-					ctx.beginPath();
-					ctx.moveTo(padding.left, y);
-					ctx.lineTo(width - padding.right, y);
-					ctx.stroke();
-				}
-
-				const getX = (index) => padding.left + (chartWidth / (labels.length - 1)) * index;
-				const getY = (value) => height - padding.bottom - ((value - minValue) / valueRange) * chartHeight;
-
-				const drawLine = (seriesData, color) => {
-					ctx.strokeStyle = color;
-					ctx.lineWidth = 2;
-					ctx.beginPath();
-					seriesData.forEach((value, index) => {
-						const x = getX(index);
-						const y = getY(value);
-						if (index === 0) {
-							ctx.moveTo(x, y);
-						} else {
-							ctx.lineTo(x, y);
-						}
-					});
-					ctx.stroke();
-
-					ctx.fillStyle = color;
-					seriesData.forEach((value, index) => {
-						const x = getX(index);
-						const y = getY(value);
-						ctx.beginPath();
-						ctx.arc(x, y, 3, 0, Math.PI * 2);
-						ctx.fill();
-					});
-				};
-
-				series.forEach((entry) => {
-					drawLine(entry.data, entry.color);
-				});
-
-				if (Array.isArray(valueLabelSeriesIndexes) && valueLabelSeriesIndexes.length) {
-					ctx.font = '11px Arial, sans-serif';
-					valueLabelSeriesIndexes.forEach((seriesIndex) => {
-						const labelSeries = series[seriesIndex];
-						if (!labelSeries) {
-							return;
-						}
-						ctx.fillStyle = labelSeries.color;
-						labelSeries.data.forEach((value, index) => {
-							if (!value) {
-								return;
-							}
-							const x = getX(index);
-							const y = getY(value) - 6;
-							const label = Math.round(value).toLocaleString('da-DK', { maximumFractionDigits: 0 }) + ' kr.';
-							ctx.fillText(label, x + 6, y);
-						});
-					});
-					ctx.font = '12px Arial, sans-serif';
-				}
-
-				ctx.fillStyle = '#1d2327';
-				ctx.textAlign = 'center';
-				ctx.textBaseline = 'top';
-				const labelSpacing = chartWidth / (labels.length - 1);
-				const labelInterval = Math.max(1, Math.ceil(50 / labelSpacing));
-				labels.forEach((label, index) => {
-					if (index % labelInterval !== 0) {
-						return;
-					}
-					const x = getX(index);
-					ctx.fillText(label, x, height - padding.bottom + 12);
-				});
-				ctx.textAlign = 'start';
-				ctx.textBaseline = 'alphabetic';
-
-				ctx.lineWidth = 0;
-				const legendY = padding.top - 8;
-				const legendGap = 16;
-				const legendBoxSize = 12;
-				const legendBoxOffset = legendBoxSize + 6;
-				let legendX = padding.left;
-				legend.forEach((entry, index) => {
-					if (index > 0) {
-						legendX += legendGap;
-					}
-					ctx.fillStyle = entry.color;
-					ctx.fillRect(legendX, padding.top - 18, legendBoxSize, legendBoxSize);
-					ctx.fillStyle = '#1d2327';
-					ctx.fillText(entry.label, legendX + legendBoxOffset, legendY);
-					legendX += legendBoxOffset + ctx.measureText(entry.label).width;
-				});
-			};
-
-			renderLineChart({
-				canvasId: '<?php echo esc_js( $balance_canvas ); ?>',
-				series: [
-					{ data: balanceData, color: '#d63638' },
-				],
-				legend: [
-					{ label: 'Saldo (kr.)', color: '#d63638' },
-				],
-				valueLabelSeriesIndexes: [0],
-			});
-
-			renderLineChart({
-				canvasId: '<?php echo esc_js( $total_canvas ); ?>',
-				series: [
-					{ data: totalCostData, color: '#00a32a' },
-					{ data: totalPaymentsData, color: '#2271b1' },
-				],
-				legend: [
-					{ label: 'Totalt forbrug (kr.)', color: '#00a32a' },
-					{ label: 'Totalt indbetalt (kr.)', color: '#2271b1' },
-				],
-				valueLabelSeriesIndexes: [0, 1],
-			});
-		})();
-	</script>
+	<div
+		class="sr-graph-data"
+		data-balance-canvas="<?php echo esc_attr( $balance_canvas ); ?>"
+		data-total-canvas="<?php echo esc_attr( $total_canvas ); ?>"
+		data-balance="<?php echo esc_attr( wp_json_encode( $balance_data ) ); ?>"
+		data-total-cost="<?php echo esc_attr( wp_json_encode( $total_cost_data ) ); ?>"
+		data-total-payments="<?php echo esc_attr( wp_json_encode( $total_payments_data ) ); ?>"
+		data-labels="<?php echo esc_attr( wp_json_encode( $month_labels ) ); ?>"
+	></div>
 	<?php
 }
 
@@ -3079,7 +2667,7 @@ function sr_render_graphs_page() {
 	?>
 	<div class="wrap">
 		<h1>Grafer</h1>
-		<form method="get" class="sr-graph-form">
+		<form method="get" class="sr-graph-form sr-graph-form--auto-submit">
 			<input type="hidden" name="page" value="<?php echo esc_attr( SR_PLUGIN_SLUG . '-graphs' ); ?>">
 			<label for="sr-resident-select">Beboer</label>
 			<select id="sr-resident-select" name="resident_id">
@@ -3112,15 +2700,8 @@ function sr_render_graphs_page() {
 			<p>Der er endnu ingen verificerede indbetalinger for det valgte år.</p>
 		<?php endif; ?>
 	</div>
-	<style>
-		.sr-graph-form{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0}
-		.sr-graph-form label{font-weight:600}
-		.sr-graph-panel{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px;max-width:980px}
-		.sr-graph-panel + .sr-graph-panel{margin-top:16px}
-	</style>
 	<?php
-	sr_render_graphs_script(
-		'.sr-graph-form',
+	sr_render_graph_data(
 		'sr-kwh-chart',
 		'sr-total-chart',
 		$balance_data,
@@ -3257,21 +2838,6 @@ function sr_render_prices_page() {
 		</table>
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-prices' ), $current_page, $total_pages ); ?>
 	</div>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -3373,21 +2939,6 @@ function sr_render_locks_page() {
 		</table>
 		<?php sr_render_pagination( admin_url( 'admin.php?page=' . SR_PLUGIN_SLUG . '-locks' ), $current_page, $total_pages ); ?>
 	</div>
-	<script>
-		(function () {
-			document.querySelectorAll('.sr-delete-row').forEach((button) => {
-				button.addEventListener('click', (event) => {
-					const summary = button.dataset.summary || '';
-					const message = summary
-						? `Er du sikker på, at du vil slette denne række?\n${summary}`
-						: 'Er du sikker på, at du vil slette denne række?';
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
-				});
-			});
-		}());
-	</script>
 	<?php
 }
 
@@ -3848,11 +3399,7 @@ function sr_render_bank_statements_page() {
 		<h1>Bankudtog</h1>
 		<?php echo wp_kses_post( $message ); ?>
 		<?php if ( '' !== $popup_message ) : ?>
-			<script>
-				(function() {
-					window.alert(<?php echo wp_json_encode( $popup_message ); ?>);
-				}());
-			</script>
+			<div class="sr-popup-message" data-message="<?php echo esc_attr( $popup_message ); ?>"></div>
 		<?php endif; ?>
 		<form method="post" enctype="multipart/form-data">
 			<?php wp_nonce_field( 'sr_upload_bank_csv_action', 'sr_upload_bank_csv_nonce' ); ?>
@@ -4140,8 +3687,8 @@ function sr_render_bank_statement_link_page() {
 	<div class="wrap">
 		<h1>Tilknyt betalinger</h1>
 		<?php echo wp_kses_post( $message ); ?>
-		<div style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
-			<form method="get" style="margin: 0;">
+		<div class="sr-bank-link-actions">
+			<form method="get" class="sr-inline-form">
 				<input type="hidden" name="page" value="<?php echo esc_attr( SR_PLUGIN_SLUG . '-bank-link-payments' ); ?>">
 				<input type="hidden" name="sr_hide_negative" value="0">
 				<label>
@@ -4208,36 +3755,6 @@ function sr_render_bank_statement_link_page() {
 		sr_render_pagination( $pagination_base, $current_page, $total_pages );
 		?>
 	</div>
-	<script>
-		const hideNegativeToggle = document.querySelector('input[type="checkbox"][name="sr_hide_negative"]');
-		if (hideNegativeToggle && hideNegativeToggle.form) {
-			hideNegativeToggle.addEventListener('change', () => {
-				hideNegativeToggle.form.submit();
-			});
-		}
-
-		document.querySelectorAll('.sr-link-payment-row').forEach((row) => {
-			const memberSelect = row.querySelector('.sr-link-payment-member');
-			const nameSelect = row.querySelector('.sr-link-payment-name');
-
-			if (!memberSelect || !nameSelect) {
-				return;
-			}
-
-			const syncSelects = (source, target) => {
-				const nextValue = source.value || '';
-				target.value = nextValue;
-			};
-
-			memberSelect.addEventListener('change', () => {
-				syncSelects(memberSelect, nameSelect);
-			});
-
-			nameSelect.addEventListener('change', () => {
-				syncSelects(nameSelect, memberSelect);
-			});
-		});
-	</script>
 	<?php
 }
 
@@ -4713,7 +4230,7 @@ function sr_resident_graphs_shortcode() {
 			<input type="number" name="reading_kwh" step="0.001" required placeholder="kWh">
 			<button type="submit" name="sr_submit_reading">Send</button>
 		</form>
-		<form method="get" class="sr-graph-form sr-graph-form--resident">
+		<form method="get" class="sr-graph-form sr-graph-form--resident sr-graph-form--auto-submit">
 			<label for="sr-year-select-resident">År</label>
 			<select id="sr-year-select-resident" name="sr_graph_year">
 				<?php foreach ( $graph_context['year_options'] as $year_option ) : ?>
@@ -4728,7 +4245,7 @@ function sr_resident_graphs_shortcode() {
 		<?php if ( empty( $graph_context['account_rows'] ) ) : ?>
 			<p>Der er ingen regnskabsdata for det valgte år.</p>
 		<?php else : ?>
-			<table class="sr-graph-table">
+			<table class="sr-graph-table sr-compact">
 				<thead>
 					<tr>
 						<th>Periode</th>
@@ -4819,24 +4336,8 @@ function sr_resident_graphs_shortcode() {
 			<p>Der er endnu ingen verificerede indbetalinger for det valgte år.</p>
 		<?php endif; ?>
 	</div>
-	<style>
-		.sr-graph-dashboard .sr-graph-form{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0}
-		.sr-graph-dashboard .sr-graph-form label{font-weight:600}
-		.sr-graph-dashboard table{font-size:0.9rem}
-		.sr-graph-dashboard table.sr-compact{font-size:0.82rem}
-		.sr-graph-dashboard table.sr-compact th,
-		.sr-graph-dashboard table.sr-compact td{padding:4px 6px}
-		.sr-graph-dashboard .sr-graph-panel{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px;max-width:980px}
-		.sr-graph-dashboard .sr-graph-panel + .sr-graph-panel{margin-top:16px}
-	</style>
-	<script>
-		jQuery(function($){
-			$('.sr-graph-dashboard .sr-graph-table').addClass('sr-compact');
-		});
-	</script>
 	<?php
-	sr_render_graphs_script(
-		'.sr-graph-form--resident',
+	sr_render_graph_data(
 		'sr-kwh-chart-resident',
 		'sr-total-chart-resident',
 		$graph_context['balance_data'],
@@ -4853,27 +4354,54 @@ add_shortcode( 'strom_regnskab_grafer', 'sr_resident_graphs_shortcode' );
 /**
  * Enqueue frontend styles for negative values.
  */
-function sr_enqueue_styles() {
-	wp_add_inline_style(
-		'wp-block-library',
-		'.sr-negative{color:#b00020;font-weight:600}.sr-positive{color:#1a7f37;font-weight:600}.sr-dashboard table{width:100%;border-collapse:collapse}.sr-dashboard table td,.sr-dashboard table th{border-bottom:1px solid #ddd;padding:6px 8px;text-align:left}'
+function sr_enqueue_frontend_assets() {
+	$asset_url = plugin_dir_url( SR_PLUGIN_FILE ) . 'assets/';
+	wp_enqueue_style(
+		'sr-frontend',
+		$asset_url . 'css/stromregnskab-frontend.css',
+		array(),
+		SR_PLUGIN_VERSION
+	);
+	wp_enqueue_script(
+		'sr-graphs',
+		$asset_url . 'js/stromregnskab-graphs.js',
+		array(),
+		SR_PLUGIN_VERSION,
+		true
 	);
 }
-add_action( 'wp_enqueue_scripts', 'sr_enqueue_styles' );
+add_action( 'wp_enqueue_scripts', 'sr_enqueue_frontend_assets' );
 
 /**
- * Enqueue admin styles for negative values.
+ * Enqueue admin assets.
  *
  * @param string $hook Admin page hook.
  */
-function sr_enqueue_admin_styles( $hook ) {
+function sr_enqueue_admin_assets( $hook ) {
 	if ( false === strpos( $hook, SR_PLUGIN_SLUG ) ) {
 		return;
 	}
 
-	wp_add_inline_style(
-		'common',
-		'.sr-negative{color:#b00020;font-weight:600}.sr-positive{color:#1a7f37;font-weight:600}body[class*="stromregnskab"] table.widefat{table-layout:auto}body[class*="stromregnskab"] table.widefat th,body[class*="stromregnskab"] table.widefat td{padding:6px 8px;white-space:normal}'
+	$asset_url = plugin_dir_url( SR_PLUGIN_FILE ) . 'assets/';
+	wp_enqueue_style(
+		'sr-admin',
+		$asset_url . 'css/stromregnskab-admin.css',
+		array(),
+		SR_PLUGIN_VERSION
+	);
+	wp_enqueue_script(
+		'sr-admin',
+		$asset_url . 'js/stromregnskab-admin.js',
+		array(),
+		SR_PLUGIN_VERSION,
+		true
+	);
+	wp_enqueue_script(
+		'sr-graphs',
+		$asset_url . 'js/stromregnskab-graphs.js',
+		array(),
+		SR_PLUGIN_VERSION,
+		true
 	);
 }
-add_action( 'admin_enqueue_scripts', 'sr_enqueue_admin_styles' );
+add_action( 'admin_enqueue_scripts', 'sr_enqueue_admin_assets' );
