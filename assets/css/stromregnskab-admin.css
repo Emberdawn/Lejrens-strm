@@ -1,0 +1,65 @@
+.sr-negative {
+	color: #b00020;
+	font-weight: 600;
+}
+
+.sr-positive {
+	color: #1a7f37;
+	font-weight: 600;
+}
+
+body[class*="stromregnskab"] table.widefat {
+	table-layout: auto;
+}
+
+body[class*="stromregnskab"] table.widefat th,
+body[class*="stromregnskab"] table.widefat td {
+	padding: 6px 8px;
+	white-space: normal;
+}
+
+.sr-hidden {
+	display: none;
+}
+
+.sr-inline-form {
+	margin: 0;
+}
+
+.sr-account-text-form {
+	display: flex;
+	gap: 12px;
+	align-items: flex-end;
+	flex-wrap: wrap;
+}
+
+.sr-bank-link-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 12px 0;
+}
+
+.sr-graph-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	margin: 16px 0;
+}
+
+.sr-graph-form label {
+	font-weight: 600;
+}
+
+.sr-graph-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 16px;
+	max-width: 980px;
+}
+
+.sr-graph-panel + .sr-graph-panel {
+	margin-top: 16px;
+}

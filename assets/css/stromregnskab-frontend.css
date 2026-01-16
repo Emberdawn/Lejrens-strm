@@ -1,0 +1,58 @@
+.sr-negative {
+	color: #b00020;
+	font-weight: 600;
+}
+
+.sr-positive {
+	color: #1a7f37;
+	font-weight: 600;
+}
+
+.sr-dashboard table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.sr-dashboard table td,
+.sr-dashboard table th {
+	border-bottom: 1px solid #ddd;
+	padding: 6px 8px;
+	text-align: left;
+}
+
+.sr-graph-dashboard .sr-graph-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	margin: 16px 0;
+}
+
+.sr-graph-dashboard .sr-graph-form label {
+	font-weight: 600;
+}
+
+.sr-graph-dashboard table {
+	font-size: 0.9rem;
+}
+
+.sr-graph-dashboard table.sr-compact {
+	font-size: 0.82rem;
+}
+
+.sr-graph-dashboard table.sr-compact th,
+.sr-graph-dashboard table.sr-compact td {
+	padding: 4px 6px;
+}
+
+.sr-graph-dashboard .sr-graph-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 16px;
+	max-width: 980px;
+}
+
+.sr-graph-dashboard .sr-graph-panel + .sr-graph-panel {
+	margin-top: 16px;
+}
