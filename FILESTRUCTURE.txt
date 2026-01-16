@@ -1,0 +1,25 @@
+Strømregnskab plugin structure (recommended)
+
+Root
+- stromregnskab.php
+  - Plugin header + constants + bootstrap. This file only loads the plugin and defines shared constants.
+
+includes/
+- stromregnskab-plugin.php
+  - Main plugin logic and hooks (legacy code moved here to keep the bootstrap slim).
+
+admin/
+- Intended for admin-only classes, screens, and assets.
+
+public/
+- Intended for front-end/public-facing classes, shortcodes, and assets.
+
+assets/
+- Shared static assets (images, CSS, JS) that are not scoped to admin/public.
+
+languages/
+- Translation files (e.g., .po/.mo).
+
+Notes
+- Future refactors should split includes/stromregnskab-plugin.php into smaller classes
+  (e.g., activator, repositories, services) to follow WordPress best practices.
